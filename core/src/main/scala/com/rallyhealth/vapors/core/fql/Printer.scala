@@ -29,7 +29,7 @@ object Printer {
       import cats.syntax.show._
       implicit val showAnyFromToString: Show[Any] = Show.fromToString
       fa match {
-        case ExpFunctor(_) => "<functor>" :: Nil
+        case ExpPure(label, _) => "<" :: label :: ">" :: Nil
         case ExpSelectField(selector, sub) => selector.path.show :: " " :: sub.foldMap(this)
         case ExpForAll(_, sub, _, _) => ".forall(_" :: sub.foldMap(this) ::: ")" :: Nil
         case ExpExists(_, sub, _, _) => ".exists(_" :: sub.foldMap(this) ::: ")" :: Nil

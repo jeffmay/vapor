@@ -1,167 +1,217 @@
 package com.rallyhealth.vapors.core.evaluator
 
-import com.rallyhealth.vapors.core.Example.JoeSchmoe
-import com.rallyhealth.vapors.core.data.{Fact, FactsMatch, NoFactsMatch}
-import com.rallyhealth.vapors.core.dsl
+import com.rallyhealth.vapors.core.data._
+import com.rallyhealth.vapors.core.dsl.AnyExp
 import org.scalatest.wordspec.AnyWordSpec
 
-class LogicalOperatorSpec extends AnyWordSpec {
-  import dsl._
+import scala.language.existentials
 
-  private def True[T]: Fact[T] => Boolean = _ => true
+final class LogicalOperatorSpec extends AnyWordSpec {
 
-  private def False[T]: Fact[T] => Boolean = _ => false
+  type LogicOpBuilder[T, A] = (AnyExp[T, A], AnyExp[T, A], Seq[AnyExp[T, A]]) => AnyExp[T, A]
 
-  "evaluator" when {
+  private def validLogicalOperators[T, A : Intersect : Union](
+    andBuilder: LogicOpBuilder[T, A],
+    orBuilder: LogicOpBuilder[T, A],
+    trueBuilder: AnyExp[T, A],
+    falseBuilder: AnyExp[T, A],
+    input: T,
+    trueOutput: A,
+    falseOutput: A,
+  ): Unit = {
 
-    "evaluating logical combinators" should {
+    val T = trueBuilder
+    val F = falseBuilder
 
-      "return true for one true and one false in an or" in {
-        val program = query {
-          or(filter(True), filter(False))
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(FactsMatch(JoeSchmoe.facts)))
+    def and(
+      one: AnyExp[T, A],
+      two: AnyExp[T, A],
+      tail: AnyExp[T, A]*,
+    ): AnyExp[T, A] = andBuilder(one, two, tail)
+
+    def or(
+      one: AnyExp[T, A],
+      two: AnyExp[T, A],
+      tail: AnyExp[T, A]*,
+    ): AnyExp[T, A] = orBuilder(one, two, tail)
+
+    "return true for one true and one false in an or" in {
+      val q = {
+        or(T, F)
       }
-
-      "return true for a complex or" in {
-        val program = query {
-          or(filter(False), filter(False), filter(True), filter(False))
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(FactsMatch(JoeSchmoe.facts)))
+      assertResult(trueOutput) {
+        eval(input)(q)
       }
+    }
 
-      "return false for a long or" in {
-        val program = query {
-          or(filter(False), filter(False), filter(False), filter(False))
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(NoFactsMatch()))
+    "return true for a complex or" in {
+      val q = {
+        or(F, F, T, F)
       }
-
-      "return false for a true and false in an and" in {
-        val program = query {
-          and(filter(True), filter(False))
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(NoFactsMatch()))
+      assertResult(trueOutput) {
+        eval(input)(q)
       }
+    }
 
-      "return true for two trues in an and" in {
-        val program = query {
-          and(filter(True), filter(True))
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(FactsMatch(JoeSchmoe.facts)))
+    "return false for a long or" in {
+      val q = {
+        or(F, F, F, F)
       }
-
-      "return false for a complex and" in {
-        val program = query {
-          and(filter(True), filter(True), filter(False), filter(True))
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(NoFactsMatch()))
+      assertResult(falseOutput) {
+        eval(input)(q)
       }
+    }
 
-      "return true for a long and" in {
-        val program = query {
-          and(filter(True), filter(True), filter(True), filter(True))
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(FactsMatch(JoeSchmoe.facts)))
+    "return false for a true and false in an and" in {
+      val q = {
+        and(T, F)
       }
-
-      "return true for nested true 'or's in an and" in {
-        val program = query {
-          and(
-            or(filter(True), filter(True)),
-            or(filter(True), filter(True)),
-          )
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(FactsMatch(JoeSchmoe.facts)))
+      assertResult(falseOutput) {
+        eval(input)(q)
       }
+    }
 
-      "return false for a nested false 'or' before some true expressions" in {
-        val program = query {
-          and(
-            or(
-              filter(False),
-              filter(False),
-            ),
-            filter(True),
-            filter(True),
-          )
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(NoFactsMatch()))
+    "return true for two trues in an and" in {
+      val q = {
+        and(T, T)
       }
-
-      "return false for a nested false 'or' after some true expressions" in {
-        val program = query {
-          and(
-            filter(True),
-            or(
-              filter(True),
-              filter(False),
-            ),
-            or(
-              filter(False),
-              filter(False),
-            ),
-          )
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(NoFactsMatch()))
+      assertResult(trueOutput) {
+        eval(input)(q)
       }
+    }
 
-      "return true for a nested false and in an 'or'" in {
-        val program = query {
-          or(
-            filter(False),
-            and(
-              filter(False),
-              filter(False),
-            ),
-            and(
-              filter(True),
-              filter(True),
-            ),
-            and(
-              filter(True),
-              filter(False),
-            ),
-          )
-        }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(FactsMatch(JoeSchmoe.facts)))
+    "return false for a complex and" in {
+      val q = {
+        and(T, T, F, T)
       }
+      assertResult(falseOutput) {
+        eval(input)(q)
+      }
+    }
 
-      "return true for a complex structure" in {
-        val program = query {
-          or(
-            filter(False),
-            and(filter(False), filter(True)),
-            or(filter(False), filter(False)),
-            and(
-              or(
-                filter(True),
-                filter(False),
-              ),
-              filter(False),
-            ),
-            or(
-              and(
-                filter(True),
-                filter(False),
-              ),
-              filter(True),
-            ),
-          )
+    "return true for a long and" in {
+      val q = {
+        and(T, T, T, T)
+      }
+      assertResult(trueOutput) {
+        eval(input)(q)
+      }
+    }
+
+    "return true for nested true 'or's in an and" in {
+      val q = {
+        and(or(T, T), or(T, T))
+      }
+      assertResult(trueOutput) {
+        eval(input)(q)
+      }
+    }
+
+    "return false for a nested false 'or' before some true expressions" in {
+      val q = {
+        and(or(F, F), T, T)
+      }
+      assertResult(falseOutput) {
+        eval(input)(q)
+      }
+    }
+
+    "return false for a nested false 'or' after some true expressions" in {
+      val q = {
+        and(T, or(T, F), or(F, F))
+      }
+      assertResult(falseOutput) {
+        eval(input)(q)
+      }
+    }
+
+    "return true for a nested false and in an 'or'" in {
+      val q = {
+        or(F, and(F, F), and(T, T), and(T, F))
+      }
+      assertResult(trueOutput) {
+        eval(input)(q)
+      }
+    }
+
+    "return true for a complex structure" in {
+      val q = {
+        or(F, and(F, T), or(F, F), and(or(T, F), F), or(and(T, F), T))
+      }
+      assertResult(trueOutput) {
+        eval(input)(q)
+      }
+    }
+  }
+
+  private abstract class DslLogicOpBuilder {
+
+    def andBuilder[T, A : Intersect]: LogicOpBuilder[T, A]
+
+    def orBuilder[T, A : Union]: LogicOpBuilder[T, A]
+  }
+
+  def validDslLogicalOperators(builder: DslLogicOpBuilder): Unit = {
+    import com.rallyhealth.vapors.core.Example.JoeSchmoe
+    import com.rallyhealth.vapors.core.dsl._
+
+    "operating on boolean results" should {
+
+      behave like validLogicalOperators[Unit, Boolean](
+        builder.andBuilder,
+        builder.orBuilder,
+        trueBuilder = alwaysTrue,
+        falseBuilder = alwaysFalse,
+        input = (),
+        trueOutput = true,
+        falseOutput = false,
+      )
+    }
+
+    "operating on ResultSets" should {
+
+      behave like validLogicalOperators[Facts[Any], ResultSet[Any]](
+        builder.andBuilder,
+        builder.orBuilder,
+        trueBuilder = alwaysMatch,
+        falseBuilder = alwaysEmpty,
+        input = JoeSchmoe.facts,
+        trueOutput = FactsMatch(JoeSchmoe.facts),
+        falseOutput = NoFactsMatch(),
+      )
+    }
+  }
+
+  "and / or" should {
+
+    behave like validDslLogicalOperators {
+      new DslLogicOpBuilder {
+        import com.rallyhealth.vapors.core.dsl._
+
+        override def andBuilder[T, A : Intersect]: LogicOpBuilder[T, A] = { (one, two, tail) =>
+          and(one, two, tail: _*)
         }
-        val result = evalQuery(JoeSchmoe.facts.toList)(program)
-        assert(result.contains(FactsMatch(JoeSchmoe.facts)))
+
+        override def orBuilder[T, A : Union]: LogicOpBuilder[T, A] = { (one, two, tail) =>
+          or(one, two, tail: _*)
+        }
+      }
+    }
+  }
+
+  "&& / ||" should {
+
+    behave like validDslLogicalOperators {
+      new DslLogicOpBuilder {
+        import com.rallyhealth.vapors.core.dsl._
+
+        override def andBuilder[T, A : Intersect]: LogicOpBuilder[T, A] = { (one, two, tail) =>
+          tail.foldLeft(one && two)(_ && _)
+        }
+
+        override def orBuilder[T, A : Union]: LogicOpBuilder[T, A] = { (one, two, tail) =>
+          tail.foldLeft(one || two)(_ || _)
+        }
       }
     }
   }

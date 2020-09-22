@@ -6,8 +6,10 @@ import com.rallyhealth.vapors.core.data.{NamedLens, Window}
 // TODO: Use CursorAlg style for ADT naming
 sealed trait ExpAlg[T, A]
 
-// TODO: Replace this with more granular algebra OR give a printable name and grammar information to every operation
-final case class ExpFunctor[T, A](apply: T => A) extends ExpAlg[T, A]
+final case class ExpPure[T, A](
+  label: String,
+  always: T => A,
+) extends ExpAlg[T, A]
 
 final case class ExpSelectField[T, U, A](
   selector: NamedLens[T, U],

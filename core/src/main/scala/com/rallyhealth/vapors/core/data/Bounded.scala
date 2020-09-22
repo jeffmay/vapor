@@ -1,6 +1,6 @@
 package com.rallyhealth.vapors.core.data
 
-import cats.{Functor, Show}
+import cats.Functor
 
 sealed trait Bounded[A]
 

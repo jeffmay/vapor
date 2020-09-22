@@ -12,35 +12,37 @@ class PrinterSpec extends AnyWordSpec {
   "Printer.serialize" should {
 
     "print an expression that selects a specific fact type using whereValue(_ > 30)" in {
-      val q = queryAny {
+      val q = {
         __.withFactsOfType(FactTypes.age)
           .whereAnyValue(__ > 30)
       }
-      val results = evalQuery(JoeSchmoe.facts.toList)(q)
-      assertResult(Some(FactsMatch(NonEmptyList.of(JoeSchmoe.age))))(results)
+      assertResult(FactsMatch(NonEmptyList.of(JoeSchmoe.age))) {
+        eval(JoeSchmoe.facts)(q)
+      }
       assertResult(
         "_.collect { case f: Fact[Int] => f.exists(_.value where x > 30) }",
       ) {
-        printer.serialize(q.expression)
+        printer.serialize(q)
       }
     }
 
     "print an expression that selects a fact type using where(factValue(_ > 200))" in {
-      val q = queryAny {
+      val q = {
         __.withFactsOfType(FactTypes.weight)
           .whereAnyValue(__ > 200)
       }
-      val results = evalQuery(JoeSchmoe.facts.toList)(q)
-      assertResult(Some(FactsMatch(NonEmptyList.of(JoeSchmoe.weight))))(results)
+      assertResult(FactsMatch(NonEmptyList.of(JoeSchmoe.weight))) {
+        eval(JoeSchmoe.facts)(q)
+      }
       assertResult(
         "_.collect { case f: Fact[Int] => f.exists(_.value where x > 200) }",
       ) {
-        printer.serialize(q.expression)
+        printer.serialize(q)
       }
     }
 
     "print an expression that selects a value using the NamedLens select" in {
-      val q = queryAny {
+      val q = {
         __.withFactsOfType(FactTypes.probs)
           .withValuesAt(_.select(_.scores).atKey("weightloss"))
           .whereAnyValue(
@@ -50,8 +52,9 @@ class PrinterSpec extends AnyWordSpec {
             ),
           )
       }
-      val results = evalQuery(JoeSchmoe.facts.toList)(q)
-      assertResult(Some(FactsMatch(NonEmptyList.of(JoeSchmoe.probs))))(results)
+      assertResult(FactsMatch(NonEmptyList.of(JoeSchmoe.probs))) {
+        eval(JoeSchmoe.facts)(q)
+      }
       assertResult(
         // TODO: This query looks wrong...
         //       there is a mismatch between how value selection works within .exists() and conditional expressions
@@ -59,7 +62,7 @@ class PrinterSpec extends AnyWordSpec {
           " case f: Fact[Example.Probs] =>" +
           " f.exists(_.value.scores['weightloss'] .exists(_where x > 0.5) or .exists(_where x < 0.3)) }",
       ) {
-        printer.serialize(q.expression)
+        printer.serialize(q)
       }
     }
   }

@@ -17,8 +17,8 @@ private[evaluator] final class EvalLoop[T] extends (ExpAlg[T, *] ~> (T => *)) {
     exp: ExpAlg[T, B],
     data: T,
   ): B = exp match {
-    case ExpFunctor(map) =>
-      map(data)
+    case ExpPure(_, value) =>
+      value(data)
     case ExpSelectField(selector, expression) =>
       evalLoop(expression)(selector.get(data))
     case ExpExists(toIterable, condition, whenTrue, whenFalse) =>

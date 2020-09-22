@@ -63,8 +63,7 @@ object dsl {
   type FactsExp[T, A] = AnyExp[Facts[T], A]
 
   /**
-    * An expression that returns a [[ResultSet]] so that it can be evaluated by
-    * the [[evaluator.evalQuery]] method.
+    * An expression that returns a [[ResultSet]] with metadata and all the facts used to compute the result.
     */
   type TerminalFactsExp[T] = FactsExp[T, ResultSet[T]]
 
@@ -88,72 +87,13 @@ object dsl {
   private def Matched[T]: Facts[T] => ResultSet[T] = FactsMatch(_)
   private def Empty[T]: Facts[T] => ResultSet[T] = _ => NoFactsMatch()
 
-  // TODO: Move Query stuff to another file
+  def alwaysTrue[T]: CondExp[T] = liftCondExp(ExpPure("True", _ => true))
 
-  /**
-    * New type wrapper for a [[TerminalFactsExp]] for a given type.
-    *
-    * @note you should call [[query]], [[queryAny]], or [[queryOf]] to get one.
-    */
-  // TODO: Should this even be parameterized? Operating over List[Fact[Any]] might be worth committing to
-  final case class Query[T](expression: TerminalFactsExp[T])
+  def alwaysFalse[T]: CondExp[T] = liftCondExp(ExpPure("False", _ => false))
 
-  // TODO: This should probably become the new norm and just implement a better filter / compiler error messages
-  def queryAny(exp: TerminalFactsExp[Any]): Query[Any] = queryOf(exp)
+  def alwaysMatch: TerminalFactsExp[Any] = liftTermExp(ExpPure("AlwaysMatch", FactsMatch(_)))
 
-  /**
-    * Builds a query that can handle any type of input by filtering the facts down the type expected by
-    * the query.
-    *
-    * This is helpful for building queries with the help of type inference.
-    *
-    * @note if you are using appropriate [[withFactsOfTypeIn]] filters, then this will skip
-    *       the step of filtering the facts to the expected type to avoid wasted computation.
-    *
-    * @param exp the query expression
-    * @tparam U the expected type of facts for the query (if you need a specific type)
-    * @return a [[Query]] that can handle any input
-    */
-  @deprecated(
-    "Use queryAny or queryOf instead. This filters to the expected types, but is different than the way FactType selection works and could cause confusion",
-    "0.0.1",
-  )
-  // TODO: This is too useful to remove without having the unified condition builder
-  def query[U : ClassTag : TypeTag](exp: TerminalFactsExp[U]): Query[Any] = {
-    val uType = typeOf[U]
-    if (uType =:= typeOf[Any]) {
-      Query(exp.asInstanceOf[TerminalFactsExp[Any]])
-    } else {
-      Query(
-        liftFactsExp(
-          ExpCollect[Facts[Any], Facts[U], ResultSet[Any]](
-            uType.toString,
-            facts =>
-              NonEmptyList.fromList(
-                facts.collect(Function.unlift {
-                  case f @ Fact(typeInfo, _: U) if typeInfo.tt.tpe <:< typeOf[U] => Some(f.asInstanceOf[Fact[U]])
-                  case _ => None
-                }),
-              ),
-            exp.map(res => res: ResultSet[Any]),
-            _ => NoFactsMatch(),
-          ),
-        ),
-      )
-    }
-  }
-
-  def queryOf[U](exp: TerminalFactsExp[U]): Query[U] = Query(exp)
-
-  @deprecated("Select the fact type first before comparing equality.", "0.0.1")
-  def hasValue[T](expected: T): TerminalFactsExp[T] = liftFactsExp {
-    ExpFunctor[Facts[T], ResultSet[T]](facts => ResultSet.fromList(facts.filter(_.value == expected)))
-  }
-
-  @deprecated("Convert this into serializable expressions over facts.", "0.0.1")
-  def filter[T](predicate: Fact[T] => Boolean): TerminalFactsExp[T] = liftFactsExp {
-    ExpFunctor[Facts[T], ResultSet[T]](facts => ResultSet.fromList(facts.filter(predicate)))
-  }
+  def alwaysEmpty: TerminalFactsExp[Any] = liftTermExp(ExpPure("AlwaysEmpty", _ => NoFactsMatch()))
 
   // TODO: Use some cats typeclass instead of iterable?
   def all[F[x] <: IterableOnce[x], T, A](cond: CondExp[T]): CondExp[F[T]] = liftCondExp {
@@ -220,6 +160,13 @@ object dsl {
       Union[A].union,
       one :: two :: others.toList,
     )
+  }
+
+  implicit final class DslOps[T, A](private val exp: AnyExp[T, A]) extends AnyVal {
+
+    def &&(o: AnyExp[T, A])(implicit A: Intersect[A]): AnyExp[T, A] = and(exp, o)
+
+    def ||(o: AnyExp[T, A])(implicit A: Union[A]): AnyExp[T, A] = or(exp, o)
   }
 
   def typeNameOf[T : TypeTag]: String = typeOf[T].toString.split('.').dropWhile(_.charAt(0).isLower).mkString(".")

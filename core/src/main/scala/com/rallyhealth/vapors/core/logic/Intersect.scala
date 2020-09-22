@@ -1,4 +1,4 @@
-package com.rallyhealth.vapors.core.data
+package com.rallyhealth.vapors.core.logic
 
 trait Intersect[A] {
 

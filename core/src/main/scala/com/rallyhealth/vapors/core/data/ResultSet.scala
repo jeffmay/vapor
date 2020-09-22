@@ -2,6 +2,7 @@ package com.rallyhealth.vapors.core.data
 
 import cats.SemigroupK
 import cats.data.NonEmptyList
+import com.rallyhealth.vapors.core.logic.{Intersect, Union}
 
 sealed trait ResultSet[+A] {
 

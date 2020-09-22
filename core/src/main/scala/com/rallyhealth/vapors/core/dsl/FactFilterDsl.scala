@@ -2,6 +2,7 @@ package com.rallyhealth.vapors.core.dsl
 
 import cats.data.NonEmptyList
 import cats.free.FreeApplicative
+import com.rallyhealth.vapors.core.logic.{Intersect, Union}
 import com.rallyhealth.vapors.core.{algebra, data, dsl}
 
 import scala.language.implicitConversions

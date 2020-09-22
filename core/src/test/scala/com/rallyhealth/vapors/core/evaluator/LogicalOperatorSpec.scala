@@ -2,6 +2,7 @@ package com.rallyhealth.vapors.core.evaluator
 
 import com.rallyhealth.vapors.core.data._
 import com.rallyhealth.vapors.core.dsl.AnyExp
+import com.rallyhealth.vapors.core.logic.{Intersect, Union}
 import org.scalatest.wordspec.AnyWordSpec
 
 import scala.language.existentials

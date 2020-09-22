@@ -29,22 +29,22 @@ object Printer {
       import cats.syntax.show._
       implicit val showAnyFromToString: Show[Any] = Show.fromToString
       fa match {
-        case ExpPure(label, _) => "<" :: label :: ">" :: Nil
-        case ExpSelectField(selector, sub) => selector.path.show :: " " :: sub.foldMap(this)
-        case ExpForAll(_, sub, _, _) => ".forall(_" :: sub.foldMap(this) ::: ")" :: Nil
-        case ExpExists(_, sub, _, _) => ".exists(_" :: sub.foldMap(this) ::: ")" :: Nil
-        case ExpWithin(window: BoundedWindow[Any], _, _) => "where " :: window.show :: Nil
-        case ExpWithin(window, _, _) => "within(" :: window.toString :: ")" :: Nil
-        case ExpCollect(subtypeName, _, sub, _) =>
+        case ExpAlg.Pure(label, _) => "<" :: label :: ">" :: Nil
+        case ExpAlg.Select(selector, sub) => selector.path.show :: " " :: sub.foldMap(this)
+        case ExpAlg.ForAll(_, sub, _, _) => ".forall(_" :: sub.foldMap(this) ::: ")" :: Nil
+        case ExpAlg.Exists(_, sub, _, _) => ".exists(_" :: sub.foldMap(this) ::: ")" :: Nil
+        case ExpAlg.Within(window: BoundedWindow[Any], _, _) => "where " :: window.show :: Nil
+        case ExpAlg.Within(window, _, _) => "within(" :: window.toString :: ")" :: Nil
+        case ExpAlg.Collect(subtypeName, _, sub, _) =>
           ".collect { case f: " :: subtypeName :: " => f" :: sub.foldMap(this) ::: " }" :: Nil
-        case ExpCond(condExp, thenExp, elseExp) =>
+        case ExpAlg.Cond(condExp, thenExp, elseExp) =>
           "if " :: condExp.foldMap(this) ::: " then " :: thenExp.foldMap(this) ::: " else " :: elseExp.foldMap(this)
-        case ExpAnd(_, subs) =>
+        case ExpAlg.And(_, subs) =>
           subs.map(_.foldMap(this)).foldLeft[List[String]](Nil) {
             case (Nil, next) => next
             case (acc, next) => acc ::: " and " :: next
           }
-        case ExpOr(_, subs) =>
+        case ExpAlg.Or(_, subs) =>
           subs.map(_.foldMap(this)).foldLeft[List[String]](Nil) {
             case (Nil, next) => next
             case (acc, next) => acc ::: " or " :: next

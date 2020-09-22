@@ -15,7 +15,7 @@ final class FactValuesExpBuilder[T >: U, U : ClassTag : TypeTag, V] private[dsl]
 
   private def selectFactValuesWhere(exp: ExpAlg[Facts[U], ResultSet[T]]): TerminalFactsExp[T] = {
     FreeApplicative.lift {
-      ExpCollect[Facts[T], Facts[U], ResultSet[T]](
+      ExpAlg.Collect[Facts[T], Facts[U], ResultSet[T]](
         s"Fact[${typeNameOf[U]}]",
         facts => NonEmptyList.fromList(facts.collect(factTypeSet.matchAsPartial[U])),
         FreeApplicative.lift(exp),
@@ -26,10 +26,10 @@ final class FactValuesExpBuilder[T >: U, U : ClassTag : TypeTag, V] private[dsl]
 
   def whereAllValues(condExp: CondExp[V]): TerminalFactsExp[T] = {
     selectFactValuesWhere {
-      ExpForAll[Facts[U], Fact[U], ResultSet[T]](
+      ExpAlg.ForAll[Facts[U], Fact[U], ResultSet[T]](
         _.toList,
         FreeApplicative.lift {
-          ExpSelectField[Fact[U], V, Boolean](factLens, condExp)
+          ExpAlg.Select[Fact[U], V, Boolean](factLens, condExp)
         },
         FactsMatch(_),
         _ => NoFactsMatch(),
@@ -39,10 +39,10 @@ final class FactValuesExpBuilder[T >: U, U : ClassTag : TypeTag, V] private[dsl]
 
   def whereAnyValue(condExp: CondExp[V]): TerminalFactsExp[T] = {
     selectFactValuesWhere {
-      ExpExists[Facts[U], Fact[U], ResultSet[T]](
+      ExpAlg.Exists[Facts[U], Fact[U], ResultSet[T]](
         _.toList,
         FreeApplicative.lift {
-          ExpSelectField[Fact[U], V, Boolean](factLens, condExp)
+          ExpAlg.Select[Fact[U], V, Boolean](factLens, condExp)
         },
         FactsMatch(_),
         _ => NoFactsMatch(),

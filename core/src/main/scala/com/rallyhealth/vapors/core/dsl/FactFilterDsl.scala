@@ -73,28 +73,28 @@ private[dsl] class FactFilterDsl {
 
   // TODO: Use some cats typeclass instead of iterable?
   def all[F[x] <: IterableOnce[x], T, A](cond: CondExp[T]): CondExp[F[T]] = liftCondExp {
-    ExpForAll[F[T], T, Boolean](identity[F[T]], cond, True, False)
+    ExpAlg.ForAll[F[T], T, Boolean](identity[F[T]], cond, True, False)
   }
 
   // TODO: Use some cats typeclass instead of iterable?
   def exists[F[x] <: IterableOnce[x], T, A](cond: CondExp[T]): CondExp[F[T]] = liftCondExp {
-    ExpExists[F[T], T, Boolean](identity[F[T]], cond, True, False)
+    ExpAlg.Exists[F[T], T, Boolean](identity[F[T]], cond, True, False)
   }
 
   def lessThan[T : Ordering](upperBound: T): CondExp[T] = liftCondExp {
-    ExpWithin[T, Boolean](Window.lessThan(upperBound), True, False)
+    ExpAlg.Within[T, Boolean](Window.lessThan(upperBound), True, False)
   }
 
   def lessThanOrEqual[T : Ordering](upperBound: T): CondExp[T] = liftCondExp {
-    ExpWithin[T, Boolean](Window.lessThanOrEqual(upperBound), True, False)
+    ExpAlg.Within[T, Boolean](Window.lessThanOrEqual(upperBound), True, False)
   }
 
   def greaterThan[T : Ordering](lowerBound: T): CondExp[T] = liftCondExp {
-    ExpWithin[T, Boolean](Window.greaterThan(lowerBound), True, False)
+    ExpAlg.Within[T, Boolean](Window.greaterThan(lowerBound), True, False)
   }
 
   def greaterThanOrEqual[T : Ordering](lowerBound: T): CondExp[T] = liftCondExp {
-    ExpWithin[T, Boolean](Window.greaterThanOrEqual(lowerBound), True, False)
+    ExpAlg.Within[T, Boolean](Window.greaterThanOrEqual(lowerBound), True, False)
   }
 
   def >[T : Ordering](lowerBound: T): CondExp[T] = greaterThan(lowerBound)
@@ -105,7 +105,7 @@ private[dsl] class FactFilterDsl {
   // TODO: Figure out how to use this conditional tertiary expression
 
   def when[T, A](exp: AnyExp[T, Boolean])(thenExp: AnyExp[T, A])(elseExp: AnyExp[T, A]): AnyExp[T, A] = liftAnyExp {
-    ExpCond[T, A](exp, thenExp, elseExp)
+    ExpAlg.Cond[T, A](exp, thenExp, elseExp)
   }
 
   def withFactsOfType[U : ClassTag : TypeTag](factType: FactType[U]): TypedFactExpBuilder[Any, U] = {
@@ -121,7 +121,7 @@ private[dsl] class FactFilterDsl {
     two: AnyExp[T, A],
     others: AnyExp[T, A]*,
   ): AnyExp[T, A] = liftAnyExp {
-    ExpAnd[T, A](
+    ExpAlg.And[T, A](
       Intersect[A].intersect,
       one :: two :: others.toList,
     )
@@ -132,7 +132,7 @@ private[dsl] class FactFilterDsl {
     two: AnyExp[T, A],
     others: AnyExp[T, A]*,
   ): AnyExp[T, A] = liftAnyExp {
-    ExpOr[T, A](
+    ExpAlg.Or[T, A](
       Union[A].union,
       one :: two :: others.toList,
     )
@@ -142,13 +142,13 @@ private[dsl] class FactFilterDsl {
 
   def typeNameOf[T : TypeTag]: String = typeOf[T].toString.split('.').dropWhile(_.charAt(0).isLower).mkString(".")
 
-  def alwaysTrue[T]: CondExp[T] = liftCondExp(ExpPure("True", _ => true))
+  def alwaysTrue[T]: CondExp[T] = liftCondExp(ExpAlg.Pure("True", _ => true))
 
-  def alwaysFalse[T]: CondExp[T] = liftCondExp(ExpPure("False", _ => false))
+  def alwaysFalse[T]: CondExp[T] = liftCondExp(ExpAlg.Pure("False", _ => false))
 
-  def alwaysMatch: TerminalFactsExp[Any] = liftTermExp(ExpPure("AlwaysMatch", FactsMatch(_)))
+  def alwaysMatch: TerminalFactsExp[Any] = liftTermExp(ExpAlg.Pure("AlwaysMatch", FactsMatch(_)))
 
-  def alwaysEmpty: TerminalFactsExp[Any] = liftTermExp(ExpPure("AlwaysEmpty", _ => NoFactsMatch()))
+  def alwaysEmpty: TerminalFactsExp[Any] = liftTermExp(ExpAlg.Pure("AlwaysEmpty", _ => NoFactsMatch()))
 
   // Helper methods for building conditional expressions that terminate in a functor to boolean
   private def True[X]: X => Boolean = _ => true

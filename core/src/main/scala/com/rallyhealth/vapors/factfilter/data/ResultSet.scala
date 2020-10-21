@@ -132,6 +132,17 @@ object TypedResultSet {
   }
 
   def fromNel[A](nonEmptyFacts: NonEmptyList[TypedFact[A]]): TypedFactsMatch[A] = FactsMatch(nonEmptyFacts)
+
+  implicit def union[T]: Union[TypedResultSet[T]] = _.foldLeft(TypedResultSet[T](Nil)) {
+    case (NoFactsMatch(), next) => next
+    case (acc, next) if acc.matchingFactSet == next.matchingFactSet => acc
+    case (acc, NoFactsMatch()) => acc
+    case (acc, TypedFactsMatch(b)) =>
+      val newFacts = b.collect {
+        case fact if !acc.matchingFactSet.contains(fact) => fact
+      }
+      TypedResultSet(acc.matchingFacts ::: newFacts)
+  }
 }
 
 // TODO: Should this be protected?

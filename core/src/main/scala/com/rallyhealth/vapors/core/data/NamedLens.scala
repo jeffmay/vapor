@@ -2,6 +2,8 @@ package com.rallyhealth.vapors.core.data
 
 import com.rallyhealth.vapors.core.macros.NamedLensMacros
 
+import scala.reflect.runtime.universe.TypeTag
+
 case class NamedLens[A, B](
   path: DataPath,
   get: A => B,
@@ -20,6 +22,9 @@ case class NamedLens[A, B](
       get = get.andThen(lens.get),
     )
   }
+
+  // TODO: Use macro to guarantee safety here
+  def as[C : TypeTag](f: B => C): NamedLens[A, C] = copy(get = this.get.andThen(f))
 
   def field[C](
     name: String,

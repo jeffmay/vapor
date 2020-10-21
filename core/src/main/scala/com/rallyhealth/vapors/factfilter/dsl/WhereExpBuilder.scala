@@ -1,7 +1,6 @@
 package com.rallyhealth.vapors.factfilter.dsl
 
 import cats.Eq
-import cats.data.NonEmptyList
 import cats.free.FreeApplicative
 import com.rallyhealth.vapors.core.algebra._
 import com.rallyhealth.vapors.core.data._
@@ -37,12 +36,73 @@ object CondBuilder {
 
 }
 
+final class FactFilterBuilder[U]
+  extends FilterBuilder[List, TypedFact[U], TypedFact[U], TypedResultSet[U]](
+    NamedLens.id[TypedFact[U]],
+    _.toList,
+    _.iterator.toList,
+    TypedResultSet(_),
+    _ => NoFactsMatch(),
+  ) {
+
+  def value: FilterBuilder[List, TypedFact[U], U, TypedResultSet[U]] = at(_.select(_.value))
+}
+
+class FilterBuilder[C[_], T, U, A] private[dsl] (
+  protected val itemLens: NamedLens[T, U],
+  protected val toIterable: C[T] => IterableOnce[T],
+  protected val fromIterable: IterableOnce[T] => C[T],
+  protected val withMatching: List[T] => A,
+  protected val ifNoMatch: List[T] => A,
+) {
+
+  def at[V](selector: NamedLens[T, U] => NamedLens[T, V]): FilterBuilder[C, T, V, A] = {
+    new FilterBuilder(
+      selector(itemLens),
+      toIterable,
+      fromIterable,
+      withMatching,
+      ifNoMatch,
+    )
+  }
+
+  def exists(buildExp: CondBuilder[T, U] => CondExp[T]): Exp[C[T], A] = {
+    FreeApplicative.lift {
+      ExpAlg.Exists[C[T], T, A](
+        toIterable,
+        buildExp(new CondBuilder(itemLens)),
+        nel => withMatching(nel.toList),
+        all => ifNoMatch(toIterable(all).iterator.toList),
+      )
+    }
+  }
+
+  def forall(buildExp: CondBuilder[T, U] => CondExp[T]): Exp[C[T], A] = {
+    FreeApplicative.lift {
+      ExpAlg.ForAll[C[T], T, A](
+        toIterable,
+        buildExp(new CondBuilder(itemLens)),
+        nel => ifNoMatch(nel.toList),
+        all => withMatching(toIterable(all).iterator.toList),
+      )
+    }
+  }
+}
+
 final class CondBuilder[T, U](private val lens: NamedLens[T, U]) extends AnyVal {
 
   private def wrap(cond: CondExp[U]): CondExp[T] =
     FreeApplicative.lift(ExpAlg.Select[T, U, Boolean](lens, cond))
 
   def at[V](selector: NamedLens[T, U] => NamedLens[T, V]): CondBuilder[T, V] = new CondBuilder(selector(lens))
+
+  def withValueAt[V](
+    selector: NamedLens[T, U] => NamedLens[T, V],
+  )(
+    buildExp: CondBuilder[T, V] => CondExp[T],
+  ): CondExp[T] = {
+    buildExp(at(selector))
+  }
 
   def in(set: Set[U]): CondExp[T] = wrap(dsl.in(set))
 
@@ -57,62 +117,78 @@ final class CondBuilder[T, U](private val lens: NamedLens[T, U]) extends AnyVal 
 
 class WhereBuilder[T, U <: T : ClassTag : TypeTag] private[dsl] (factTypeSet: FactTypeSet[U]) {
 
-  def whereAnyFact(buildExp: CondBuilder[TypedFact[U], TypedFact[U]] => CondExp[TypedFact[U]]): TerminalFactsExp = {
-    collectFacts {
-      whereAny(TypedFact.lens[U], buildExp)
-    }
+  def where(buildExp: FactFilterBuilder[U] => Exp[List[TypedFact[U]], TypedResultSet[U]]): TerminalFactsExp = {
+    val exp = buildExp(new FactFilterBuilder[U])
+    collectFacts(exp)
   }
 
-  def whereAnyFactValue(buildExp: CondBuilder[TypedFact[U], U] => CondExp[TypedFact[U]]): TerminalFactsExp = {
-    collectFacts {
-      whereAny(TypedFact.value[U], buildExp)
-    }
-  }
+//  def whereAnyFact(buildExp: CondBuilder[TypedFact[U], TypedFact[U]] => CondExp[TypedFact[U]]): TerminalFactsExp = {
+//    collectFacts {
+//      FreeApplicative.lift {
+//        whereAny(TypedFact.lens[U], buildExp)
+//      }
+//    }
+//  }
+//
+//  def whereAnyFactValue(buildExp: CondBuilder[TypedFact[U], U] => CondExp[TypedFact[U]]): TerminalFactsExp = {
+//    collectFacts {
+//      FreeApplicative.lift {
+//        whereAny(TypedFact.value[U], buildExp)
+//      }
+//    }
+//  }
+//
+//  private def whereAny[V](
+//    lens: NamedLens[TypedFact[U], V],
+//    buildExp: CondBuilder[TypedFact[U], V] => CondExp[TypedFact[U]],
+//  ): ExpAlg[List[TypedFact[U]], TypedResultSet[U]] = {
+//    ExpAlg.Exists[List[TypedFact[U]], TypedFact[U], TypedResultSet[U]](
+//      _.toList,
+//      buildExp(new CondBuilder(lens)),
+//      TypedResultSet.fromNel,
+//      _ => NoFactsMatch(),
+//    )
+//  }
+//
+//  def whereEveryFact(buildExp: CondBuilder[TypedFact[U], TypedFact[U]] => CondExp[TypedFact[U]]): TerminalFactsExp = {
+//    collectFacts {
+//      FreeApplicative.lift {
+//        whereEvery(TypedFact.lens[U], buildExp)
+//      }
+//    }
+//  }
+//
+//  def whereEveryFactValue(buildExp: CondBuilder[TypedFact[U], U] => CondExp[TypedFact[U]]): TerminalFactsExp = {
+//    collectFacts {
+//      FreeApplicative.lift {
+//        whereEvery(TypedFact.value[U], buildExp)
+//      }
+//    }
+//  }
 
-  private def whereAny[V](
-    lens: NamedLens[TypedFact[U], V],
-    buildExp: CondBuilder[TypedFact[U], V] => CondExp[TypedFact[U]],
-  ): ExpAlg[FactsOfType[U], TypedResultSet[U]] = {
-    ExpAlg.Exists[FactsOfType[U], TypedFact[U], TypedResultSet[U]](
-      _.toList,
-      buildExp(new CondBuilder(lens)),
-      found => TypedResultSet.fromNel(found),
-      _ => NoFactsMatch(),
-    )
-  }
-
-  def whereEveryFact(buildExp: CondBuilder[TypedFact[U], TypedFact[U]] => CondExp[TypedFact[U]]): TerminalFactsExp = {
-    collectFacts {
-      whereEvery(TypedFact.lens[U], buildExp)
-    }
-  }
-
-  def whereEveryFactValue(buildExp: CondBuilder[TypedFact[U], U] => CondExp[TypedFact[U]]): TerminalFactsExp = {
-    collectFacts {
-      whereEvery(TypedFact.value[U], buildExp)
-    }
-  }
-
-  private def collectFacts(exp: ExpAlg[FactsOfType[U], TypedResultSet[U]]): TerminalFactsExp = {
+  private def collectFacts(exp: Exp[List[TypedFact[U]], TypedResultSet[U]]): TerminalFactsExp = {
     FreeApplicative.lift {
-      ExpAlg.Collect[Facts, FactsOfType[U], ResultSet](
+      ExpAlg.Collect[Facts, List[TypedFact[U]], ResultSet](
         s"Fact[${typeNameOf[U]}]",
-        facts => NonEmptyList.fromList(facts.collect(factTypeSet.collector)),
-        FreeApplicative.lift(exp).map(rs => rs: ResultSet),
+        facts => {
+          val matching = facts.collect(factTypeSet.collector)
+          Option.when(matching.nonEmpty)(matching)
+        },
+        exp.map(rs => rs: ResultSet),
         _ => NoFactsMatch(),
       )
     }
   }
 
-  private def whereEvery[V](
-    lens: NamedLens[TypedFact[U], V],
-    buildExp: CondBuilder[TypedFact[U], V] => CondExp[TypedFact[U]],
-  ): ExpAlg[FactsOfType[U], TypedResultSet[U]] = {
-    ExpAlg.ForAll[FactsOfType[U], TypedFact[U], TypedResultSet[U]](
-      _.toList,
-      buildExp(new CondBuilder(lens)),
-      _ => NoFactsMatch(),
-      TypedFactsMatch(_),
-    )
-  }
+//  private def whereEvery[V](
+//    lens: NamedLens[TypedFact[U], V],
+//    buildExp: CondBuilder[TypedFact[U], V] => CondExp[TypedFact[U]],
+//  ): ExpAlg[List[TypedFact[U]], TypedResultSet[U]] = {
+//    ExpAlg.ForAll[List[TypedFact[U]], TypedFact[U], TypedResultSet[U]](
+//      _.toList,
+//      buildExp(new CondBuilder(lens)),
+//      _ => NoFactsMatch(),
+//      TypedResultSet(_),
+//    )
+//  }
 }

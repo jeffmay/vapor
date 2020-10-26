@@ -17,6 +17,10 @@ private[dsl] class Dsl extends TypedFactOps {
     ExpAlg.Exists[T, V, Boolean](ev, cond, True, False)
   }
 
+  def in[T](set: Set[T]): CondExp[T] = liftCondExp {
+    ExpAlg.SetContains(set, True, False)
+  }
+
   def within[T](window: Window[T]): CondExp[T] = liftCondExp {
     ExpAlg.Within[T, Boolean](window, True, False)
   }

@@ -40,6 +40,12 @@ object ExpAlg {
     def eq: Eq[T] = Eq[T]
   }
 
+  final case class SetContains[T, A](
+    values: Set[T],
+    whenTrue: T => A,
+    whenFalse: T => A,
+  ) extends ExpAlg[T, A]
+
   final case class Within[T, A](
     window: Window[T],
     whenTrue: T => A,

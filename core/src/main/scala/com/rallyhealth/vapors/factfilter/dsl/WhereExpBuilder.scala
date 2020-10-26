@@ -44,6 +44,8 @@ final class CondBuilder[T, U](private val lens: NamedLens[T, U]) extends AnyVal 
 
   def at[V](selector: NamedLens[T, U] => NamedLens[T, V]): CondBuilder[T, V] = new CondBuilder(selector(lens))
 
+  def in(set: Set[U]): CondExp[T] = wrap(dsl.in(set))
+
   def within(window: Window[U]): CondExp[T] = wrap(dsl.within(window))
 
   def >(min: U)(implicit ord: Ordering[U]): CondExp[T] = within(Window.greaterThan(min))

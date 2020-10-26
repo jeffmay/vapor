@@ -92,6 +92,17 @@ final class FreeApEvaluatorSpec extends AnyWordSpec {
       }
     }
 
+    "return matching facts if string in a set" in {
+      val q = {
+        withType(FactTypes.Tag).whereAnyFactValue {
+          _ in Set("asthma", "lung cancer")
+        }
+      }
+      assertResult(FactsMatch(Facts(JoeSchmoe.asthmaTag))) {
+        evalWithFacts(JoeSchmoe.facts)(q)
+      }
+    }
+
     "using whereEveryValue" in {
       val q = {
         withType(FactTypes.BloodPressureMeasurement).whereEveryFactValue { value =>

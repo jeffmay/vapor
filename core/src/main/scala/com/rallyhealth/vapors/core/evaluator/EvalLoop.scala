@@ -38,6 +38,8 @@ private[evaluator] final class EvalLoop[T] extends (ExpAlg[T, *] ~> (T => *)) {
       else whenFalse(data)
     case exp @ ExpAlg.EqualTo(value, whenTrue, whenFalse) =>
       if (exp.eq.eqv(value, data)) whenTrue(data) else whenFalse(data)
+    case ExpAlg.SetContains(set, whenTrue, whenFalse) =>
+      if (set.contains(data)) whenTrue(data) else whenFalse(data)
     case ExpAlg.Within(window, whenTrue, whenFalse) =>
       if (window.contains(data)) whenTrue(data) else whenFalse(data)
     case ExpAlg.Cond(condition, thenExpression, elseExpression) =>

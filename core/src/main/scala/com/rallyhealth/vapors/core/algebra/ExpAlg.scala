@@ -1,6 +1,7 @@
 package com.rallyhealth.vapors.core.algebra
 
 import cats.Eq
+import cats.data.NonEmptyList
 import cats.free.FreeApplicative
 import com.rallyhealth.vapors.core.data.{NamedLens, Window}
 
@@ -21,14 +22,14 @@ object ExpAlg {
   final case class ForAll[T, U, A](
     toIterable: T => IterableOnce[U],
     condition: FreeApplicative[ExpAlg[U, *], Boolean],
+    foundFalse: NonEmptyList[U] => A,
     whenTrue: T => A,
-    whenFalse: T => A,
   ) extends ExpAlg[T, A]
 
   final case class Exists[T, U, A](
     toIterable: T => IterableOnce[U],
     condition: FreeApplicative[ExpAlg[U, *], Boolean],
-    whenTrue: T => A,
+    foundTrue: NonEmptyList[U] => A,
     whenFalse: T => A,
   ) extends ExpAlg[T, A]
 

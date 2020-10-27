@@ -76,7 +76,7 @@ final class FreeApEvaluatorSpec extends AnyWordSpec {
           _.within(Window.between(100, 250))
         }
       }
-      assertResult(FactsMatch(Facts(JoeSchmoe.weight, JoeSchmoe.weightSelfReported))) {
+      assertResult(FactsMatch(Facts(JoeSchmoe.weightSelfReported))) {
         evalWithFacts(JoeSchmoe.facts)(q)
       }
     }
@@ -123,8 +123,7 @@ final class FreeApEvaluatorSpec extends AnyWordSpec {
           value >= Role.Admin
         }
       }
-      // TODO: This is wrong... it should only be the admin role.
-      assertResult(FactsMatch(Facts(JoeSchmoe.adminRole, JoeSchmoe.userRole))) {
+      assertResult(FactsMatch(Facts(JoeSchmoe.adminRole))) {
         evalWithFacts(JoeSchmoe.facts)(q)
       }
     }

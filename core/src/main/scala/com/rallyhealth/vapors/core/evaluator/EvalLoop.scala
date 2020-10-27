@@ -1,5 +1,6 @@
 package com.rallyhealth.vapors.core.evaluator
 
+import cats.data.NonEmptyList
 import cats.instances.function._
 import cats.~>
 import com.rallyhealth.vapors.core.algebra._
@@ -22,20 +23,16 @@ private[evaluator] final class EvalLoop[T] extends (ExpAlg[T, *] ~> (T => *)) {
       value(data)
     case ExpAlg.Select(selector, expression) =>
       evalLoop(expression)(selector.get(data))
-    case ExpAlg.Exists(toIterable, condition, whenTrue, whenFalse) =>
-      // we don't need this intermediate list and can remove it for performance,
-      // but for the time being this is a good place to put a debugger
-      val results = toIterable(data).iterator.map(evalLoop(condition)).toList
-      val success = Union[Boolean].union(results)
-      if (success) whenTrue(data)
-      else whenFalse(data)
-    case ExpAlg.ForAll(toIterable, condition, whenTrue, whenFalse) =>
-      // we don't need this intermediate list and can remove it for performance,
-      // but for the time being this is a good place to put a debugger
-      val results = toIterable(data).iterator.map(evalLoop(condition)).toList
-      val success = Intersect[Boolean].intersect(results)
-      if (success) whenTrue(data)
-      else whenFalse(data)
+    case ExpAlg.Exists(toIterable, condition, foundTrue, whenFalse) =>
+      val values = toIterable(data).iterator
+      val results = values.map(v => (v, evalLoop(condition)(v)))
+      val found = results.collect { case (v, true) => v }
+      NonEmptyList.fromList(found.toList).map(foundTrue).getOrElse(whenFalse(data))
+    case ExpAlg.ForAll(toIterable, condition, foundFalse, whenTrue) =>
+      val values = toIterable(data).iterator
+      val results = values.map(v => (v, evalLoop(condition)(v)))
+      val found = results.collect { case (v, false) => v }
+      NonEmptyList.fromList(found.toList).map(foundFalse).getOrElse(whenTrue(data))
     case exp @ ExpAlg.EqualTo(value, whenTrue, whenFalse) =>
       if (exp.eq.eqv(value, data)) whenTrue(data) else whenFalse(data)
     case ExpAlg.SetContains(set, whenTrue, whenFalse) =>

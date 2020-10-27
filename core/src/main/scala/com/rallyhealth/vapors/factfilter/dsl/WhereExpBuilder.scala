@@ -76,7 +76,7 @@ class WhereBuilder[T, U <: T : ClassTag : TypeTag] private[dsl] (factTypeSet: Fa
     ExpAlg.Exists[FactsOfType[U], TypedFact[U], TypedResultSet[U]](
       _.toList,
       buildExp(new CondBuilder(lens)),
-      FactsMatch(_),
+      found => TypedResultSet.fromNel(found),
       _ => NoFactsMatch(),
     )
   }
@@ -111,8 +111,8 @@ class WhereBuilder[T, U <: T : ClassTag : TypeTag] private[dsl] (factTypeSet: Fa
     ExpAlg.ForAll[FactsOfType[U], TypedFact[U], TypedResultSet[U]](
       _.toList,
       buildExp(new CondBuilder(lens)),
-      FactsMatch(_),
       _ => NoFactsMatch(),
+      TypedFactsMatch(_),
     )
   }
 }

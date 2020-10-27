@@ -10,7 +10,7 @@ import com.rallyhealth.vapors.factfilter.data._
 private[dsl] class Dsl extends TypedFactOps {
 
   def forall[T, V](cond: CondExp[V])(implicit ev: T <:< IterableOnce[V]): CondExp[T] = liftCondExp {
-    ExpAlg.ForAll[T, V, Boolean](ev, cond, True, False)
+    ExpAlg.ForAll[T, V, Boolean](ev, cond, False, True)
   }
 
   def exists[T, V](cond: CondExp[V])(implicit ev: T <:< IterableOnce[V]): CondExp[T] = liftCondExp {

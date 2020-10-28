@@ -8,6 +8,7 @@ import com.rallyhealth.vapors.core.util.ReflectUtils.typeNameOf
 import com.rallyhealth.vapors.factfilter.data._
 import com.rallyhealth.vapors.factfilter.dsl
 
+import scala.collection.Factory
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
@@ -33,6 +34,20 @@ object CondBuilder {
   implicit def asIterableOps[T, C[x] <: IterableOnce[x], V](builder: CondBuilder[T, C[V]]): IterableOps[T, C, V] = {
     new IterableOps[T, C, V](builder.wrap)
   }
+
+//  implicit def asFilterBuilder[C[x] <: IterableOnce[x], U](
+//    builder: CondBuilder[C[U], C[U]],
+//  )(implicit
+//    f: Factory[U, C[U]],
+//  ): FilterBuilder[C, U, U, Boolean] = {
+//    new FilterBuilder[C, U, U, Boolean](
+//      NamedLens.id[U],
+//      identity[IterableOnce[U]],
+//      _.iterator.to(f),
+//      _.nonEmpty,
+//      _.isEmpty,
+//    )
+//  }
 
 }
 

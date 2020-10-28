@@ -218,7 +218,7 @@ class WindowSpec extends AnyWordSpec {
           assertContainsValue(Window.lessThan(_), _ max _, inclusive = false)
         }
 
-        "lessThanOrEqual() contains a value greaterThanOrEqualTo a given window boundary" in {
+        "lessThanOrEqual() contains a value lessThanOrEqualTo a given window boundary" in {
           assertContainsValue(Window.lessThanOrEqual(_), _ max _, inclusive = true)
         }
       }

@@ -1,6 +1,7 @@
 package com.rallyhealth.vapors.factfilter.data
 
 import cats.data.NonEmptyList
+import cats.{Eq, Monoid}
 import com.rallyhealth.vapors.core.logic.{Intersect, Union}
 
 /**
@@ -15,30 +16,15 @@ sealed abstract class ResultSet extends Equals {
 
   /**
     * True when [[matchingFacts]] is empty, and there is no subset of the facts provided that
-    * * can sufficiently prove the query to be true.
-    *
-    * @see [[isFalse]]
+    * can sufficiently prove the query to be true.
     */
   final def isEmpty: Boolean = matchingFacts.isEmpty
-
-  /**
-    * True when [[matchingFacts]] is not empty.
-    *
-    * @see [[isTrue]]
-    */
-  @inline final def nonEmpty: Boolean = !isEmpty
 
   /**
     * True when [[matchingFacts]] is not empty, and there exists a subset of the provided facts
     * that can be used to prove the query to be true.
     */
-  @inline final def isTrue: Boolean = !isEmpty
-
-  /**
-    * True when [[matchingFacts]] is empty, and there is no subset of the facts provided that
-    * can sufficiently prove the query to be true.
-    */
-  @inline final def isFalse: Boolean = isEmpty
+  @inline final def nonEmpty: Boolean = !isEmpty
 
   /**
     * Same as [[matchingFacts]], but as a Set.
@@ -64,7 +50,7 @@ sealed abstract class ResultSet extends Equals {
   /**
     * Alias for [[union]].
     */
-  final def ++(o: ResultSet): ResultSet = this.union(o)
+  @inline final def ++(o: ResultSet): ResultSet = this.union(o)
 
   /**
     * Alias for [[union]].
@@ -77,18 +63,15 @@ sealed abstract class ResultSet extends Equals {
   override def equals(other: Any): Boolean = other match {
     case that: ResultSet =>
       that.canEqual(this) &&
-        this.matchingFacts == that.matchingFacts
+        this.matchingFactSet == that.matchingFactSet
     case _ => false
   }
 
-  override def hashCode(): Int = {
-    val state = matchingFacts
-    state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
-  }
+  override def hashCode(): Int = matchingFactSet.hashCode()
 
   override final def toString: String = this match {
     case NoFactsMatch() => "NoFactsMatch()"
-    case matched: FactsMatch => s"FactsMatch(${matched.matchingFactsNel})"
+    case matched: FactsMatch => s"FoundEvidence(${matched.matchingFactsNel})"
   }
 }
 
@@ -100,11 +83,29 @@ object ResultSet {
 
   def fromNel(nonEmptyFacts: NonEmptyList[Fact]): FactsMatch = FactsMatch(nonEmptyFacts)
 
-  implicit val unionAbstractResultSet: Union[ResultSet] = {
+  /**
+    * This is safe if you are treating a [[ResultSet]] as a collection of facts.
+    *
+    * However, if you want to perform logical operations for combining [[ResultSet]]s, you should use
+    * a separate type-class, like [[Union]] or [[Intersect]].
+    *
+    * @see [[com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction.Output.monoid]]
+    */
+  implicit val monoid: Monoid[ResultSet] = {
+    new Monoid[ResultSet] {
+      override def empty: ResultSet = NoFactsMatch
+      override def combine(
+        x: ResultSet,
+        y: ResultSet,
+      ): ResultSet = x ++ y
+    }
+  }
+
+  implicit val union: Union[ResultSet] = {
     _.reduceLeft[ResultSet](_ | _) // union all the possible facts (for better quality calculations)
   }
 
-  implicit val intersectAbstractResultSet: Intersect[ResultSet] = {
+  implicit val intersect: Intersect[ResultSet] = {
     _.reduceLeft[ResultSet] {
       case (NoFactsMatch(), _) | (_, NoFactsMatch()) => NoFactsMatch() // skip the all expressions if the first failed
       case (acc, nextResult) => acc | nextResult // union all the required facts
@@ -127,15 +128,50 @@ sealed trait TypedResultSet[A] extends ResultSet {
 
 object TypedResultSet {
 
+  def empty[A]: TypedResultSet[A] = NoFactsMatch()
+
   def apply[A](facts: List[TypedFact[A]]): TypedResultSet[A] = {
-    NonEmptyList.fromList(facts).map(FactsMatch(_)).getOrElse(NoFactsMatch())
+    NonEmptyList.fromList(facts).map(TypedFactsMatch(_)).getOrElse(NoFactsMatch())
   }
 
-  def fromNel[A](nonEmptyFacts: NonEmptyList[TypedFact[A]]): TypedFactsMatch[A] = FactsMatch(nonEmptyFacts)
+  def fromNel[A](nonEmptyFacts: NonEmptyList[TypedFact[A]]): TypedFactsMatch[A] = TypedFactsMatch(nonEmptyFacts)
+
+  implicit def eq[T]: Eq[TypedResultSet[T]] = Eq.fromUniversalEquals
+
+  private val monoidAny: Monoid[TypedResultSet[Any]] = {
+    new Monoid[TypedResultSet[Any]] {
+      override def empty: TypedResultSet[Any] = NoFactsMatch()
+      override def combine(
+        x: TypedResultSet[Any],
+        y: TypedResultSet[Any],
+      ): TypedResultSet[Any] = {
+        if (x.matchingFactSet == y.matchingFactSet) x
+        else
+          x match {
+            case NoFactsMatch() => y
+            case TypedFactsMatch(matchingFactsNel) =>
+              val newFacts = matchingFactsNel.collect {
+                case fact if !x.matchingFactSet.contains(fact) => fact
+              }
+              TypedFactsMatch(matchingFactsNel ++ newFacts)
+          }
+      }
+    }
+  }
+
+  implicit def monoid[T]: Monoid[TypedResultSet[T]] = monoidAny.asInstanceOf[Monoid[TypedResultSet[T]]]
+
+  implicit def intersect[T]: Intersect[TypedResultSet[T]] = _.reduce { (x, y) =>
+    import cats.syntax.eq._
+    import cats.syntax.monoid._
+    if (x === y) x
+    else if (x.isEmpty) x
+    else if (y.isEmpty) y
+    else x |+| y
+  }
 }
 
-// TODO: Should this be protected?
-sealed class FactsMatch(val matchingFactsNel: NonEmptyList[Fact]) extends ResultSet {
+sealed class FactsMatch protected (val matchingFactsNel: NonEmptyList[Fact]) extends ResultSet {
 
   /**
     * @see [[ResultSet.matchingFacts]]
@@ -144,10 +180,6 @@ sealed class FactsMatch(val matchingFactsNel: NonEmptyList[Fact]) extends Result
 }
 
 object FactsMatch {
-
-  def apply[T](matchingFactsNel: FactsOfType[T]): TypedFactsMatch[T] = {
-    new TypedFactsMatch(matchingFactsNel)
-  }
 
   def apply(matchingFactsNel: Facts): FactsMatch = {
     new FactsMatch(matchingFactsNel)

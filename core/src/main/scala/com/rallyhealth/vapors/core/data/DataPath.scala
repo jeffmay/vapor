@@ -4,7 +4,7 @@ import cats.Show
 import cats.data.NonEmptySet
 
 import scala.annotation.tailrec
-import scala.collection.{immutable, BitSet}
+import scala.collection.{immutable, BitSet, SortedSet}
 
 // TODO: Better data structure for appending?
 final case class DataPath(nodes: List[DataPath.Node]) extends AnyVal {
@@ -37,9 +37,14 @@ final case class DataPath(nodes: List[DataPath.Node]) extends AnyVal {
   def atKey[K : ValidDataPathKey](key: K): DataPath =
     DataPath(nodes ::: MapKey(ValidDataPathKey[K].stringify(key)) :: Nil)
 
+  def filterKeys[K : ValidDataPathKey](keys: NonEmptySet[K]): DataPath = {
+    import cats.instances.string._
+    DataPath(nodes ::: FilterKeys(keys.map(ValidDataPathKey[K].stringify).toSortedSet) :: Nil)
+  }
+
   def atField(name: String): DataPath = DataPath(nodes ::: Field(name) :: Nil)
 
-  def :::(that: DataPath): DataPath = DataPath(this.nodes ::: that.nodes)
+  def :::(that: DataPath): DataPath = DataPath(that.nodes ::: this.nodes)
 }
 
 object DataPath {
@@ -52,6 +57,8 @@ object DataPath {
   final case class Field(name: String) extends Node
 
   final case class MapKey(key: String) extends Node
+
+  final case class FilterKeys(keys: SortedSet[String]) extends Node
 
   final case object Head extends Node
 
@@ -94,6 +101,10 @@ object DataPath {
       head match {
         case MapKey(key) =>
           buffer.append("['").append(key).append("']")
+        case FilterKeys(keys) =>
+          buffer.append("['")
+          joinKeys(buffer, keys, "', '")
+          buffer.append("']")
         case Field(name) =>
           buffer.append('.').append(name)
         case Head =>
@@ -110,14 +121,25 @@ object DataPath {
           remaining ::= IdxSet(BitSet.fromSpecific(range))
         case IdxSet(idxSet) =>
           buffer.append('[')
-          for (idx <- idxSet) {
-            buffer.append(idx)
-            buffer.append(',')
-          }
-          buffer.setLength(buffer.length() - 1)
+          joinKeys(buffer, idxSet, ",")
           buffer.append(']')
       }
       writeToBuilder(buffer, remaining)
+  }
+
+  private def joinKeys[T](
+    buffer: StringBuilder,
+    items: IterableOnce[T],
+    sep: String,
+  ): Unit = {
+    val iter = items.iterator
+    if (iter.nonEmpty) {
+      for (item <- iter) {
+        buffer.append(item)
+        buffer.append(sep)
+      }
+      buffer.setLength(buffer.length - sep.length)
+    }
   }
 
   implicit val show: Show[DataPath] = Show.show { path =>

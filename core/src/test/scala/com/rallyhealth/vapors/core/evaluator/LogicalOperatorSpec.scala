@@ -2,7 +2,7 @@ package com.rallyhealth.vapors.core.evaluator
 
 import com.rallyhealth.vapors.core.logic.{Intersect, Union}
 import com.rallyhealth.vapors.factfilter.Example.JoeSchmoe
-import com.rallyhealth.vapors.factfilter.data.{Facts, FactsMatch, NoFactsMatch, ResultSet}
+import com.rallyhealth.vapors.factfilter.data.{Facts, FactsMatch, NoFactsMatch, ResultSet, TypedFactsMatch}
 import com.rallyhealth.vapors.factfilter.dsl._
 import org.scalatest.wordspec.AnyWordSpec
 

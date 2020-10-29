@@ -2,8 +2,10 @@ package com.rallyhealth.vapors.core.data
 
 import java.time.{LocalDate, LocalDateTime, LocalTime, ZonedDateTime}
 
+import cats.Order
 import org.scalacheck.Arbitrary
 import org.scalacheck.ops._
+import org.scalactic.Equivalence
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks._
 
@@ -12,9 +14,11 @@ import scala.reflect.runtime.universe.{typeOf, TypeTag}
 
 class WindowSpec extends AnyWordSpec {
 
-  import scala.Ordering.Implicits._
+  import cats.instances.int._
+  import Ordering.Implicits._
 
-  class BoundedWindowTests[A : Arbitrary : Ordering](buildWindow: (A, A) => Window[A]) {
+  class BoundedWindowTests[A : Arbitrary : Order](buildWindow: (A, A) => Window[A]) {
+    import cats.syntax.order._
 
     private def assertWithBoundedWindow(
       testLowerBound: (Window[A], A) => Unit = (_, _) => (),
@@ -116,8 +120,9 @@ class WindowSpec extends AnyWordSpec {
       }
     }
 
-    def aNumericRangeIgnoringStepSize[A : Integral : Arbitrary](): Unit = {
+    def aNumericRangeIgnoringStepSize[A : Integral : Arbitrary : Equivalence](): Unit = {
       val I = Integral[A]
+      implicit val A: Order[A] = Order.fromOrdering
       val step2 = I.plus(I.one, I.one)
 
       "exclusive" should {
@@ -144,6 +149,7 @@ class WindowSpec extends AnyWordSpec {
     }
 
     def allWindowTests[A : Arbitrary : Ordering : TypeTag](): Unit = {
+      implicit val order: Order[A] = Order.fromOrdering
       val typeName = typeOf[A].toString
 
       s"given values of type $typeName" when {
@@ -224,11 +230,13 @@ class WindowSpec extends AnyWordSpec {
       }
     }
 
-    allWindowTests[Int]()
-    allWindowTests[Long]()
-    allWindowTests[LocalDate]()
-    allWindowTests[LocalTime]()
-    allWindowTests[LocalDateTime]()
-    allWindowTests[ZonedDateTime]()
+    locally {
+      allWindowTests[Int]()
+      allWindowTests[Long]()
+      allWindowTests[LocalDate]()
+      allWindowTests[LocalTime]()
+      allWindowTests[LocalDateTime]()
+      allWindowTests[ZonedDateTime]()
+    }
   }
 }

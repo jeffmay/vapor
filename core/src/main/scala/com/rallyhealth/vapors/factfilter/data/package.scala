@@ -26,4 +26,6 @@ package object data {
     * Alias for a collection of facts of a specific type.
     */
   final type FactsOfType[T] = NonEmptyList[TypedFact[T]]
+
+  final type TypedFacts[T] = List[TypedFact[T]]
 }

@@ -1,25 +1,48 @@
 package com.rallyhealth.vapors.core.data
 
+import cats.data.NonEmptySet
+import cats.kernel.Semigroup
 import com.rallyhealth.vapors.core.macros.NamedLensMacros
 
-case class NamedLens[A, B](
+import scala.collection.Factory
+
+object NamedLens {
+
+  type Id[A] = NamedLens[A, A]
+  val Id: NamedLens[Any, Any] = NamedLens(DataPath(Nil), identity[Any])
+  def id[A]: NamedLens[A, A] = Id.asInstanceOf[Id[A]]
+
+  type Fn[A, B] = NamedLens.Id[A] => NamedLens[A, B]
+  type ==>[A, B] = NamedLens.Id[A] => NamedLens[A, B]
+
+  implicit final class Selector[A, B](val lens: NamedLens[A, B]) extends AnyVal {
+    // TODO: Rename downField?
+    def select[C](getter: B => C): NamedLens[A, C] = macro NamedLensMacros.selectImpl[A, B, C]
+  }
+
+  implicit final class AsIterableBuilder[A, B[x] <: IterableOnce[x], V](private val lens: NamedLens[A, B[V]])
+    extends AnyVal {
+
+    def to[C](factory: Factory[V, C]): NamedLens[A, C] =
+      lens.copy(get = lens.get.andThen(_.iterator.to(factory)))
+  }
+
+}
+
+final case class NamedLens[A, B](
   path: DataPath,
   get: A => B,
-) {
-
-  def compose[C](lens: NamedLens[C, A]): NamedLens[C, B] = {
-    copy(
-      path = lens.path ::: this.path,
-      get = get.compose(lens.get),
-    )
-  }
+) { outer =>
 
   def andThen[C](lens: NamedLens[B, C]): NamedLens[A, C] = {
     copy(
-      path = lens.path ::: this.path, // TODO: Why is this broken?
+      path = this.path ::: lens.path,
       get = get.andThen(lens.get),
     )
   }
+
+  // Helpful for building a tuple with the lens itself. Identical to identity, but you don't have to specify the type.
+  def self: NamedLens[A, B] = this
 
   def field[C](
     name: String,
@@ -31,33 +54,37 @@ case class NamedLens[A, B](
     )
   }
 
-  def atKey[C[x, y] <: Map[x, y], K : ValidDataPathKey, V](
+  def atKey[K : ValidDataPathKey, V](
     key: K,
   )(implicit
-    ev: B <:< C[K, V],
+    CI: Indexed[B, K, Option[V]],
   ): NamedLens[A, Option[V]] = {
     copy(
       path = path.atKey(key),
-      get = get.andThen(b => ev(b).get(key)),
+      get = get.andThen(b => CI.get(b)(key)),
     )
   }
 
-  def head[C[x] <: Iterable[x], V](implicit ev: B <:< C[V]): NamedLens[A, Option[V]] = {
+  def filterKeys[K : ValidDataPathKey, V : Semigroup](
+    keys: NonEmptySet[K],
+  )(implicit
+    CI: Indexed[B, K, V],
+  ): NamedLens[A, V] = {
+    import com.rallyhealth.vapors.core.syntax.indexed._
+    copy(
+      path = path.filterKeys(keys),
+      get = get.andThen(_.filterKeys(keys)),
+    )
+  }
+
+  def headOption[C[x] <: Iterable[x], V](implicit ev: B <:< C[V]): NamedLens[A, Option[V]] = {
     copy(
       path = path.atHead,
       get = get.andThen(b => ev(b).headOption),
     )
   }
-}
 
-object NamedLens {
-
-  type Id[A] = NamedLens[A, A]
-  val Id: NamedLens[Any, Any] = NamedLens(DataPath(Nil), identity[Any])
-  def id[A]: NamedLens[A, A] = Id.asInstanceOf[Id[A]]
-
-  implicit class Selector[A, B](val lens: NamedLens[A, B]) extends AnyVal {
-    def select[C](getter: B => C): NamedLens[A, C] = macro NamedLensMacros.selectImpl[A, B, C]
-  }
+  def asIterable[V](implicit ev: B <:< IterableOnce[V]): NamedLens.AsIterableBuilder[A, IterableOnce, V] =
+    new NamedLens.AsIterableBuilder(this.copy(get = this.get.andThen(ev)))
 
 }

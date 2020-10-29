@@ -24,7 +24,10 @@ object NamedLensMacros {
 //      c.error(c.enclosingPosition, "Can only call .select from NamedLens")
 //    }
 //    c.Expr[NamedLens[A, C]](q"$lens.field($fieldName, $getter)")
-    val q"(..$_) => $_.${TermName(fieldName)}" = getter.tree
+    val fieldName = getter.tree match {
+      case q"(..$_) => $_.${TermName(value)}" => value
+      case q"(..$_) => $_.${TermName(getMethod)}()" => getMethod
+    }
     val fieldNameExp = c.Expr[String](q"$fieldName")
     reify {
       c.prefix.splice.asInstanceOf[NamedLens.Selector[A, B]].lens.field(fieldNameExp.splice, getter.splice)

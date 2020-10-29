@@ -4,10 +4,14 @@ import cats.data.{NonEmptyList, NonEmptyMap, NonEmptySet}
 
 import scala.collection.immutable
 
-final case class FactTypeSet[A] private (types: NonEmptyMap[String, FactType[A]]) {
+final case class FactTypeSet[A] private (typeMap: NonEmptyMap[String, FactType[A]]) {
+
+  lazy val typeList: NonEmptyList[FactType[A]] = typeMap.toNel.map(_._2)
+
+  lazy val typeSet: NonEmptySet[FactType[A]] = typeList.toNes
 
   private val castPF: PartialFunction[Fact, TypedFact[A]] = {
-    case fact @ TypedFact(factType, _) if types(factType.fullName).contains(factType) =>
+    case fact @ TypedFact(factType, _) if typeMap(factType.fullName).contains(factType) =>
       // Justification: This checks equality of the FactType at runtime after safely casting the value
       fact.asInstanceOf[TypedFact[A]]
   }
@@ -30,6 +34,8 @@ final case class FactTypeSet[A] private (types: NonEmptyMap[String, FactType[A]]
 }
 
 object FactTypeSet {
+
+  implicit def one[A](factType: FactType[A]): FactTypeSet[A] = of(factType)
 
   def of[A](
     one: FactType[A],

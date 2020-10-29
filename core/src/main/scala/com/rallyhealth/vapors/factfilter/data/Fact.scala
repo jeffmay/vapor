@@ -7,6 +7,19 @@ sealed abstract class Fact {
 
   val typeInfo: FactType[Value]
   val value: Value
+
+  override def toString: String = {
+    // TODO: JSON format for value? Show for value?
+    s"Fact(${typeInfo.fullName} = $value)"
+  }
+}
+
+object Fact {
+
+  @inline final def apply[T](
+    factType: FactType[T],
+    value: T,
+  ): Fact = TypedFact(factType, value)
 }
 
 final case class TypedFact[A](

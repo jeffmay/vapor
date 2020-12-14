@@ -3,6 +3,8 @@ package com.rallyhealth.vapors.factfilter
 import cats.data.NonEmptyList
 import com.rallyhealth.vapors.core.data.NamedLens
 
+import scala.collection.immutable.SortedSet
+
 package object data {
 
   /**
@@ -11,6 +13,8 @@ package object data {
     * @note This is the input for a top-level fact filter expression.
     */
   final type Facts = NonEmptyList[Fact]
+
+  final type FactSet = SortedSet[Fact]
 
   /**
     * A [[NamedLens]] defined over a [[TypedFact]] of a known type.

@@ -2,9 +2,8 @@ package com.rallyhealth.vapors.factfilter.evaluator
 
 import cats.instances.double._
 import com.rallyhealth.vapors.factfilter.Example.{FactTypes, JoeSchmoe}
-import com.rallyhealth.vapors.factfilter.data.FactsMatch
+import com.rallyhealth.vapors.factfilter.data.Evidence
 import com.rallyhealth.vapors.factfilter.dsl.ExprDsl._
-import com.rallyhealth.vapors.factfilter.dsl.Facts
 import com.rallyhealth.vapors.factfilter.extras.TimeRange
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -26,7 +25,7 @@ class CapturePSpec extends AnyWordSpec {
         assert(result.param.value === TimeRange(JoeSchmoe.weight.value.timestamp))
         assert(result.output.value)
         assert(result.output.evidence.nonEmpty)
-        assertResult(FactsMatch(Facts(JoeSchmoe.weight)))(result.output.evidence)
+        assertResult(Evidence(JoeSchmoe.weight))(result.output.evidence)
       }
     }
   }

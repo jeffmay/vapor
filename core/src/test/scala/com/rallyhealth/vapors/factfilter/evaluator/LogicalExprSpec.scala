@@ -4,9 +4,9 @@ import cats.Id
 import com.rallyhealth.vapors.core.algebra.Expr
 import com.rallyhealth.vapors.core.logic._
 import com.rallyhealth.vapors.factfilter.Example.JoeSchmoe
-import com.rallyhealth.vapors.factfilter.data.{ExtractBoolean, FactTable, Facts, FactsMatch}
-import com.rallyhealth.vapors.factfilter.dsl.{CaptureP, ExprDsl}
+import com.rallyhealth.vapors.factfilter.data.{Evidence, ExtractBoolean, FactTable, Facts}
 import com.rallyhealth.vapors.factfilter.dsl.ExprDsl._
+import com.rallyhealth.vapors.factfilter.dsl.{CaptureP, ExprDsl}
 import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction.{Input, Output}
 import org.scalactic.source.Position
 import org.scalatest.wordspec.AnyWordSpec
@@ -23,7 +23,7 @@ class LogicalExprSpec extends AnyWordSpec {
   private type UnaryLogicOpBuilder[R] = LogicExpr[R] => LogicExpr[R]
 
   private def evalUnit[R](facts: Facts)(expr: LogicExpr[R]): Output[R] = {
-    InterpretExprAsFunction(expr)(Input[Id, Unit]((), FactsMatch(facts), FactTable(facts.toList))).output
+    InterpretExprAsFunction(expr)(Input[Id, Unit]((), Evidence(facts.toList), FactTable(facts.toList))).output
   }
 
   private def validLogicalOperators[R](
@@ -302,11 +302,11 @@ class LogicalExprSpec extends AnyWordSpec {
         assertTrue = { implicit pos => o =>
           assert(o.value)
           // TODO: Is is sufficient to only test all the facts or no facts?
-          assertResult(FactsMatch(JoeSchmoe.facts))(o.evidence)
+          assertResult(Evidence(JoeSchmoe.facts.toList))(o.evidence)
         },
         assertFalse = { implicit pos => o =>
           assert(!o.value)
-          assertResult(FactsMatch(JoeSchmoe.facts))(o.evidence)
+          assertResult(Evidence(JoeSchmoe.facts.toList))(o.evidence)
         },
       )
     }

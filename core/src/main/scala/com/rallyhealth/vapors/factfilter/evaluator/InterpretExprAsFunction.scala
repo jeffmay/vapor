@@ -112,7 +112,7 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
         val conditionResult = conditionFn(conditionInput)
         val isMatch = conditionResult.output.value
         val matchedIdx = if (isMatch) Chain(idx) else Chain.nil
-        val accEvidence = if (isMatch) conditionResult.output.evidence else NoFactsMatch()
+        val accEvidence = if (isMatch) conditionResult.output.evidence else Evidence.none
         (matchedIdx, accEvidence, Chain(conditionResult))
     }
     val matchedIndexSet = allMatchedIndexes.iterator.to(BitSet)
@@ -153,8 +153,8 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
       mapFn(mapInput)
     }
     val allValues = allResults.map(_.output.value)
-    val (allEvidence, allParams) = allResults.foldMap { res =>
-      (res.output.evidence, res.param :: Nil)
+    val (allEvidence, allParams) = allResults.foldMap { elemResult =>
+      (elemResult.output.evidence, elemResult.param :: Nil)
     }
     val subOps = allResults.toList
     resultOfManySubExpr(expr, input, allValues, allEvidence, allParams) {
@@ -271,7 +271,7 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
     val inputFactTable = input.withValue(input.factTable)
     val withMatchingFactsFn = expr.subExpr.visit(InterpretExprAsFunction())
     val matchingFacts = input.factTable.getAll(expr.factTypeSet)
-    val subInput = input.copy(value = matchingFacts, evidence = ResultSet(matchingFacts))
+    val subInput = input.copy(value = matchingFacts, evidence = Evidence(matchingFacts))
     val subResult = withMatchingFactsFn(subInput)
     val postParam = expr.capture.foldToParam(expr, inputFactTable, subResult.output, subResult.param :: Nil)
     ExprResult.WithFactsOfType(
@@ -285,7 +285,7 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
     expr: Expr[F, V, R, P],
     input: Input[F, V],
     result: R,
-    evidence: ResultSet,
+    evidence: Evidence,
   )(
     buildPostOp: (expr.type, ExprResult.Context[F, V, R, P]) => ExprResult[F, V, R, P],
   ): ExprResult[F, V, R, P] = {
@@ -296,7 +296,7 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
     expr: Expr[F, V, R, P],
     input: Input[F, V],
     result: R,
-    evidence: ResultSet,
+    evidence: Evidence,
     capturedParams: List[Eval[P]],
   )(
     buildResult: (expr.type, ExprResult.Context[F, V, R, P]) => ExprResult[F, V, R, P],
@@ -332,7 +332,7 @@ object InterpretExprAsFunction {
 
   final case class Input[F[_], V](
     value: F[V],
-    evidence: ResultSet,
+    evidence: Evidence,
     factTable: FactTable,
   ) {
 
@@ -346,25 +346,25 @@ object InterpretExprAsFunction {
     type Init = Input[Id, FactTable]
 
     @inline def fromFactTable(factTable: FactTable): Init =
-      Input[Id, FactTable](factTable, NoFactsMatch(), factTable)
+      Input[Id, FactTable](factTable, Evidence.none, factTable)
 
     @inline def fromValue[V](
       value: V,
-      evidence: ResultSet,
+      evidence: Evidence,
       factTable: FactTable,
     ): Input[Id, V] =
       Input[Id, V](value, evidence, factTable)
 
     @inline def fromValue[V](
       value: V,
-      evidence: ResultSet = NoFactsMatch,
+      evidence: Evidence = Evidence.none,
     ): Input[Id, V] =
-      fromValue(value, evidence, FactTable(evidence.matchingFacts))
+      fromValue(value, evidence, FactTable(evidence.factSet.toList))
   }
 
   final case class Output[R](
     value: R,
-    evidence: ResultSet,
+    evidence: Evidence,
   )
 
   object Output {
@@ -406,12 +406,12 @@ object InterpretExprAsFunction {
             // only combine evidence of truthiness if both sides are true
             val evTrueL = Option.when(isTrue(lhs))(lhs.evidence)
             val evTrueR = Option.when(isTrue(rhs))(rhs.evidence)
-            (evTrueL, evTrueR).mapN(_ ++ _).getOrElse(ResultSet(Nil))
+            (evTrueL, evTrueR).mapN(_ ++ _).getOrElse(Evidence.none)
           } else {
             val evFalseL = Option.unless(isTrue(lhs))(lhs.evidence)
             val evFalseR = Option.unless(isTrue(rhs))(rhs.evidence)
             // combine any evidence of falseness
-            (evFalseL ++ evFalseR).foldLeft(ResultSet(Nil)) { case (l, r) => l ++ r }
+            (evFalseL ++ evFalseR).foldLeft(Evidence.none) { case (l, r) => l ++ r }
           }
         }
         Output(value, evidence)
@@ -454,12 +454,12 @@ object InterpretExprAsFunction {
             // combine all evidence of truthiness from sides that are truthy
             val evTrueL = Option.when(isTrue(lhs))(lhs.evidence)
             val evTrueR = Option.when(isTrue(rhs))(rhs.evidence)
-            (evTrueL ++ evTrueR).foldLeft(ResultSet(Nil)) { case (l, r) => l ++ r }
+            (evTrueL ++ evTrueR).foldLeft(Evidence.none) { case (l, r) => l ++ r }
           } else {
             // only combine evidence of falseness if both sides are false
             val evFalseL = Option.unless(lhs.evidence.isEmpty)(lhs.evidence)
             val evFalseR = Option.unless(rhs.evidence.isEmpty)(rhs.evidence)
-            (evFalseL, evFalseR).mapN(_ ++ _).getOrElse(NoFactsMatch())
+            (evFalseL, evFalseR).mapN(_ ++ _).getOrElse(Evidence.none)
           }
         }
         Output(value, evidence)
@@ -474,7 +474,7 @@ object InterpretExprAsFunction {
       * Combine two monoidal values and union their evidence.
       *
       * @note This is not _always_ safe. There may be some combinations of values in which you must combine
-      *       [[ResultSet]] for the resulting value differently based on the inputs. However, this is not the
+      *       [[Evidence]] for the resulting value differently based on the inputs. However, this is not the
       *       general purpose or intent of saying something is a [[Monoid]], so this definition should be
       *       generally safe. For example, there is no standard definition of [[Monoid]] for Boolean, because
       *       there is no safe assumption for and "empty" boolean value. However, evidence of true || true is
@@ -485,7 +485,7 @@ object InterpretExprAsFunction {
       new Monoid[Output[A]] {
 
         override final def empty: Output[A] = {
-          Output(Monoid[A].empty, NoFactsMatch())
+          Output(Monoid[A].empty, Evidence.none)
         }
 
         override final def combine(

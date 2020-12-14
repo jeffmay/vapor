@@ -78,7 +78,7 @@ object Expr {
     */
   final case class ConstOutput[F[_], V, R, P](
     value: R,
-    evidence: ResultSet,
+    evidence: Evidence,
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitConstOutput(this)

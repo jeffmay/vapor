@@ -1,9 +1,8 @@
 package com.rallyhealth.vapors.factfilter.evaluator
 
 import com.rallyhealth.vapors.factfilter.Example._
-import com.rallyhealth.vapors.factfilter.data.FactsMatch
+import com.rallyhealth.vapors.factfilter.data.Evidence
 import com.rallyhealth.vapors.factfilter.dsl.ExprDsl._
-import com.rallyhealth.vapors.factfilter.dsl.Facts
 import org.scalatest.wordspec.AnyWordSpec
 
 class InterpretExprAsFunctionSpec extends AnyWordSpec {
@@ -22,11 +21,11 @@ class InterpretExprAsFunctionSpec extends AnyWordSpec {
             _.get(_.select(_.value)) >= 18
           }
         }
-        val output = eval(JoeSchmoe.factTable)(q)
-        assert(output.param.value === ())
-        assert(output.output.value)
-        assert(output.output.evidence.nonEmpty)
-        assertResult(FactsMatch(Facts(JoeSchmoe.age)))(output.output.evidence)
+        val result = eval(JoeSchmoe.factTable)(q)
+        assert(result.param.value === ())
+        assert(result.output.value)
+        assert(result.output.evidence.nonEmpty)
+        assertResult(Evidence(JoeSchmoe.age))(result.output.evidence)
       }
 
       "find a complex fact from a query" in {
@@ -37,8 +36,8 @@ class InterpretExprAsFunctionSpec extends AnyWordSpec {
             }
           }
         }
-        val output = eval(JoeSchmoe.factTable)(q)
-        assertResult(FactsMatch(Facts(JoeSchmoe.probs)))(output.output.evidence)
+        val result = eval(JoeSchmoe.factTable)(q)
+        assertResult(Evidence(JoeSchmoe.probs))(result.output.evidence)
       }
 
       "define a fact expression" in {
@@ -49,8 +48,8 @@ class InterpretExprAsFunctionSpec extends AnyWordSpec {
             }
           }
         }
-        val output = eval(JoeSchmoe.factTable)(likelyToJoinWeightloss)
-        assertResult(FactsMatch(Facts(JoeSchmoe.probs)))(output.output.evidence)
+        val result = eval(JoeSchmoe.factTable)(likelyToJoinWeightloss)
+        assertResult(Evidence(JoeSchmoe.probs))(result.output.evidence)
       }
     }
   }

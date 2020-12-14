@@ -12,10 +12,10 @@ import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction
 
 object ExprDsl extends ExprBuilderSyntax {
 
-  type CondExpr[F[_], V, P] = Expr[F, V, Boolean, P]
+  final type CondExpr[F[_], V, P] = Expr[F, V, Boolean, P]
 
-  type ValExpr[V, R, P] = Expr[Id, V, R, P]
-  type ValCondExpr[V, P] = Expr[Id, V, Boolean, P]
+  final type ValExpr[V, R, P] = Expr[Id, V, R, P]
+  final type ValCondExpr[V, P] = ValExpr[V, Boolean, P]
 
   type RootExpr[R, P] = Expr[Id, FactTable, R, P]
 
@@ -33,7 +33,7 @@ object ExprDsl extends ExprBuilderSyntax {
     */
   def const[F[_], V, R, P](
     value: R,
-    evidence: ResultSet = NoFactsMatch,
+    evidence: Evidence = Evidence.none,
   )(implicit
     post: CaptureP[F, V, R, P],
   ): Expr[F, V, R, P] =
@@ -47,7 +47,7 @@ object ExprDsl extends ExprBuilderSyntax {
   )(implicit
     post: CaptureP[F, V, R, P],
   ): Expr[F, V, R, P] =
-    const(typedFact.value, FactsMatch(Facts(typedFact)))
+    const(typedFact.value, Evidence(typedFact))
 
   def input[F[_], V, P](
     implicit

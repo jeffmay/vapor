@@ -9,6 +9,8 @@ import com.rallyhealth.vapors.core.math.{Addition, Negative, Subtraction}
 import com.rallyhealth.vapors.factfilter.data._
 import com.rallyhealth.vapors.factfilter.dsl.CaptureP
 
+import scala.collection.immutable.SortedSet
+
 /**
   * The core expression algebra.
   *
@@ -42,7 +44,7 @@ object Expr {
     def visitAnd[R : Conjunction : ExtractBoolean](expr: And[F, V, R, P]): G[R]
     def visitCollectSomeOutput[M[_] : Foldable, U, R : Monoid](expr: CollectFromOutput[F, V, M, U, R, P]): G[R]
     def visitConstOutput[R](expr: ConstOutput[F, V, R, P]): G[R]
-    def visitDefine[M[_] : Foldable, T](expr: Define[M, T, P]): G[List[Fact]]
+    def visitDefine[M[_] : Foldable, T](expr: Define[M, T, P]): G[FactSet]
     def visitEmbed[R](expr: Embed[F, V, R, P]): G[R]
     def visitExistsInOutput[M[_] : Foldable, U](expr: ExistsInOutput[F, V, M, U, P]): G[Boolean]
     def visitFlatMapOutput[M[_] : Foldable : FlatMap, U, X](expr: FlatMapOutput[F, V, M, U, X, P]): G[M[X]]
@@ -126,7 +128,7 @@ object Expr {
     */
   final case class WithFactsOfType[T, R, P](
     factTypeSet: FactTypeSet[T],
-    subExpr: Expr[List, TypedFact[T], R, P],
+    subExpr: Expr[SortedSet, TypedFact[T], R, P],
     capture: CaptureP[Id, FactTable, R, P],
   ) extends Expr[Id, FactTable, R, P] {
     override def visit[G[_]](v: Visitor[Id, FactTable, P, G]): G[R] = v.visitWithFactsOfType(this)
@@ -141,7 +143,7 @@ object Expr {
     *
     * @see https://github.com/scala/bug/issues/8039 for more info
     */
-  sealed trait Definition[P] extends Expr[Id, FactTable, List[Fact], P]
+  sealed trait Definition[P] extends Expr[Id, FactTable, FactSet, P]
 
   /**
     * Define or add another source for a [[FactType]].
@@ -152,9 +154,9 @@ object Expr {
   final case class Define[M[_] : Foldable, T, P](
     factType: FactType[T],
     definitionExpr: Expr[Id, FactTable, M[T], P],
-    capture: CaptureP[Id, FactTable, List[Fact], P],
+    capture: CaptureP[Id, FactTable, FactSet, P],
   ) extends Definition[P] {
-    override def visit[G[_]](v: Visitor[Id, FactTable, P, G]): G[List[Fact]] = v.visitDefine(this)
+    override def visit[G[_]](v: Visitor[Id, FactTable, P, G]): G[FactSet] = v.visitDefine(this)
   }
 
   /**

@@ -2,10 +2,11 @@ package com.rallyhealth.vapors.core.algebra
 
 import cats.kernel.Monoid
 import cats.{~>, Eval, Foldable, Id}
-import com.rallyhealth.vapors.factfilter.data.{Fact, FactTable, TypedFact}
+import com.rallyhealth.vapors.factfilter.data.{Fact, FactSet, FactTable, TypedFact}
 import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction.{Input, Output}
 
 import scala.collection.BitSet
+import scala.collection.immutable.SortedSet
 
 /**
   * The result of evaluating an [[Expr]] with some given [[Input]].
@@ -41,7 +42,7 @@ object ExprResult {
     def visitAnd[R](result: And[F, V, R, P]): G[R]
     def visitCollectFromOutput[M[_] : Foldable, U, R : Monoid](result: CollectFromOutput[F, V, M, U, R, P]): G[R]
     def visitConstOutput[R](result: ConstOutput[F, V, R, P]): G[R]
-    def visitDeclare[M[_], T](result: Define[F, V, M, T, P]): G[List[Fact]]
+    def visitDeclare[M[_], T](result: Define[F, V, M, T, P]): G[FactSet]
     def visitEmbed[R](result: Embed[F, V, R, P]): G[R]
     def visitExistsInOutput[M[_] : Foldable, U](result: ExistsInOutput[F, V, M, U, P]): G[Boolean]
     def visitFlatMapOutput[M[_], U, R](result: FlatMapOutput[F, V, M, U, R, P]): G[M[R]]
@@ -96,17 +97,17 @@ object ExprResult {
   final case class WithFactsOfType[F[_], V, T, R, P](
     expr: Expr.WithFactsOfType[T, R, P],
     context: Context[F, V, R, P],
-    subResult: ExprResult[List, TypedFact[T], R, P],
+    subResult: ExprResult[SortedSet, TypedFact[T], R, P],
   ) extends ExprResult[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitWithFactsOfType(this)
   }
 
   final case class Define[F[_], V, M[_], T, P](
     expr: Expr.Define[M, T, P],
-    context: Context[F, V, List[Fact], P],
+    context: Context[F, V, FactSet, P],
     definitionResult: ExprResult[Id, FactTable, M[T], P],
-  ) extends ExprResult[F, V, List[Fact], P] {
-    override def visit[G[_]](v: Visitor[F, V, P, G]): G[List[Fact]] = v.visitDeclare(this)
+  ) extends ExprResult[F, V, FactSet, P] {
+    override def visit[G[_]](v: Visitor[F, V, P, G]): G[FactSet] = v.visitDeclare(this)
   }
 
   final case class UsingDefinitions[F[_], V, R, P](

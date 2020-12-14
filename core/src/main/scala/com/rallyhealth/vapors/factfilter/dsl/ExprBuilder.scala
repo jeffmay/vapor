@@ -2,8 +2,11 @@ package com.rallyhealth.vapors.factfilter.dsl
 
 import cats.{FlatMap, Foldable, Functor, Id, Order}
 import com.rallyhealth.vapors.core.algebra.Expr
+import com.rallyhealth.vapors.core.algebra.Expr.ReturnInput
 import com.rallyhealth.vapors.core.data.{NamedLens, Window}
 import com.rallyhealth.vapors.core.math.{Addition, Negative, Subtraction}
+
+import scala.collection.Factory
 
 sealed class ExprBuilder[F[_], V, M[_], U, P](val returnOutput: Expr[F, V, M[U], P]) {
 
@@ -78,6 +81,23 @@ final class SubtractBuilderOps[R : Subtraction](number: R) {
 
 sealed class FoldableExprBuilder[F[_] : Foldable, V, M[_] : Foldable, U, P](returnOutput: Expr[F, V, M[U], P])
   extends ExprBuilder[F, V, M, U, P](returnOutput) {
+
+  def toList(
+    implicit
+    ev: M[U] <:< Iterable[U],
+    captureOutput: CaptureP[F, V, List[U], P],
+  ): FoldableExprBuilder[F, V, List, U, P] =
+    to(List)
+
+  def to[N[+_] <: Iterable[_] : Foldable](
+    factory: Factory[U, N[U]],
+  )(implicit
+    ev: M[U] <:< Iterable[U],
+    captureOutput: CaptureP[F, V, N[U], P],
+  ): FoldableExprBuilder[F, V, N, U, P] =
+    new FoldableExprBuilder(
+      Expr.SelectFromOutput(returnOutput, NamedLens.id[M[U]].asIterable.to(factory), captureOutput),
+    )
 
   def map[R](
     buildFn: ValExprBuilder[U, U, P] => ExprBuilder[Id, U, Id, R, P],

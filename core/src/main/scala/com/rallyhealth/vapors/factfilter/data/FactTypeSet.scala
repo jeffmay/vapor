@@ -4,19 +4,22 @@ import cats.data.{NonEmptyList, NonEmptyMap, NonEmptySet}
 
 import scala.collection.immutable
 
+// TODO: Lazy vals for functions? Or AnyVal with defs?
 final case class FactTypeSet[A] private (typeMap: NonEmptyMap[String, FactType[A]]) {
 
   lazy val typeList: NonEmptyList[FactType[A]] = typeMap.toNel.map(_._2)
 
   lazy val typeSet: NonEmptySet[FactType[A]] = typeList.toNes
 
-  private val castPF: PartialFunction[Fact, TypedFact[A]] = {
+  private lazy val castPF: PartialFunction[Fact, TypedFact[A]] = {
+    // Justification: This checks equality of the FactType at runtime, so it should be safe to cast
     case fact @ TypedFact(factType, _) if typeMap(factType.fullName).contains(factType) =>
-      // Justification: This checks equality of the FactType at runtime after safely casting the value
       fact.asInstanceOf[TypedFact[A]]
   }
 
-  private val castF: Fact => Option[TypedFact[A]] = castPF.lift
+  private lazy val castF: Fact => Option[TypedFact[A]] = castPF.lift
+
+  def unapply(fact: Fact): Option[TypedFact[A]] = castF(fact)
 
   /**
     * Checks the [[FactType]] for equality with one of the types in this set.

@@ -10,9 +10,6 @@ final class Evidence private (val factSet: SortedSet[Fact]) extends AnyVal {
   def isEmpty: Boolean = factSet.isEmpty
   def nonEmpty: Boolean = factSet.nonEmpty
 
-  @deprecated("Use factSet instead.", "0.3.0")
-  def facts: List[Fact] = factSet.toList
-
   @inline def ++(that: Evidence): Evidence = union(that)
   @inline def |(that: Evidence): Evidence = union(that)
 

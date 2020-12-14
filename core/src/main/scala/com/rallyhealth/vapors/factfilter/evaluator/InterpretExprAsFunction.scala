@@ -14,10 +14,8 @@ import scala.collection.immutable.BitSet
 final class InterpretExprAsFunction[F[_] : Foldable, V, P]
   extends Expr.Visitor[F, V, P, Lambda[r => Input[F, V] => ExprResult[F, V, r, P]]] {
 
-  import com.rallyhealth.vapors.core.syntax.math._
-  import cats.instances.list._
-  import cats.instances.tuple._
   import cats.syntax.all._
+  import com.rallyhealth.vapors.core.syntax.math._
 
   override def visitAddOutputs[R : Addition](
     expr: Expr.AddOutputs[F, V, R, P],
@@ -79,13 +77,13 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
 
   override def visitDefine[M[_] : Foldable, T](
     expr: Expr.Define[M, T, P],
-  ): Input[F, V] => ExprResult[F, V, List[Fact], P] = { input =>
+  ): Input[F, V] => ExprResult[F, V, FactSet, P] = { input =>
     val definitionFn = expr.definitionExpr.visit(InterpretExprAsFunction())
     val definitionContext = input.withValue(input.factTable)
     val definitionResult = definitionFn(definitionContext)
-    val definedFacts = definitionResult.output.value.foldMap(Fact(expr.factType, _) :: Nil)
+    val definedFactSet = definitionResult.output.value.foldMap(v => FactSet(Fact(expr.factType, v)))
     // TODO: The evidence of the definitions should include the facts that proved them
-    val output = Output(definedFacts, definitionResult.output.evidence)
+    val output = Output(definedFactSet, definitionResult.output.evidence)
     val postParam = expr.capture.foldToParam(expr, definitionContext, output, definitionResult.param :: Nil)
     ExprResult.Define(expr, ExprResult.Context(input, output, postParam), definitionResult)
   }
@@ -244,7 +242,7 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
       (definitionResult.output.value, definitionResult.output.evidence, definitionResult.param :: Nil)
     }
     val subInput =
-      input.copy(factTable = input.factTable.addAll(declaredFacts), evidence = input.evidence ++ evidence)
+      input.copy(factTable = input.factTable.addAll(declaredFacts), evidence = input.evidence | evidence)
     val subFn = expr.subExpr.visit(this)
     val subResult = subFn(subInput)
     // TODO: Come up with a better way to combine the CaptureP params from expressions that have multiple
@@ -270,8 +268,8 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
   ): Input[F, V] => ExprResult[F, V, R, P] = { input =>
     val inputFactTable = input.withValue(input.factTable)
     val withMatchingFactsFn = expr.subExpr.visit(InterpretExprAsFunction())
-    val matchingFacts = input.factTable.getAll(expr.factTypeSet)
-    val subInput = input.copy(value = matchingFacts, evidence = Evidence(matchingFacts))
+    val matchingFacts = input.factTable.getAllByFactType(expr.factTypeSet)
+    val subInput = input.withTypedFacts(matchingFacts)
     val subResult = withMatchingFactsFn(subInput)
     val postParam = expr.capture.foldToParam(expr, inputFactTable, subResult.output, subResult.param :: Nil)
     ExprResult.WithFactsOfType(
@@ -336,9 +334,13 @@ object InterpretExprAsFunction {
     factTable: FactTable,
   ) {
 
+    @inline def withTypedFacts[G[x] <: Iterable[x], T](facts: G[TypedFact[T]]): Input[G, TypedFact[T]] = {
+      copy(value = facts, evidence = Evidence(facts))
+    }
+
     @inline def withFoldableValue[G[_], U](value: G[U]): Input[G, U] = copy(value = value)
 
-    @inline def withValue[U](value: U): Input[Id, U] = withFoldableValue[Id, U](value = value)
+    @inline def withValue[U](value: U): Input[Id, U] = copy[Id, U](value = value)
   }
 
   final object Input {
@@ -359,7 +361,7 @@ object InterpretExprAsFunction {
       value: V,
       evidence: Evidence = Evidence.none,
     ): Input[Id, V] =
-      fromValue(value, evidence, FactTable(evidence.factSet.toList))
+      fromValue(value, evidence, FactTable(evidence.factSet))
   }
 
   final case class Output[R](

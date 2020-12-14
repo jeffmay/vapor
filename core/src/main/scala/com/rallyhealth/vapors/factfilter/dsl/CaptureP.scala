@@ -2,9 +2,11 @@ package com.rallyhealth.vapors.factfilter.dsl
 
 import cats.{Eval, Monoid}
 import com.rallyhealth.vapors.core.algebra.Expr
+import com.rallyhealth.vapors.factfilter.data.TypedFact
 import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction.{Input, Output}
 
 import scala.annotation.implicitNotFound
+import scala.collection.immutable.SortedSet
 
 @implicitNotFound(
   """
@@ -30,6 +32,20 @@ trait CaptureP[F[_], V, R, P] {
 }
 
 object CaptureP {
+
+  /**
+    * Captures the type parameter from facts with a value of type [[T]].
+    */
+  trait FromFactsOfType[T, R, P] extends CaptureP[SortedSet, TypedFact[T], R, P]
+
+  /**
+    * Captures the type parameter from facts with a value of type [[T]] (assuming [[P]] is a [[Monoid]])
+    *
+    * @see [[AsMonoid]]
+    */
+  abstract class AsMonoidFromFactsOfType[T, R, P : Monoid]
+    extends AsMonoid[SortedSet, TypedFact[T], R, P]
+    with FromFactsOfType[T, R, P]
 
   // TODO: This is not very safe. Nodes will often combine the params of their input expressions and sub expressions.
   //       It might not be safe to assume that Monoid is enough to capture the expected behavior for combining the

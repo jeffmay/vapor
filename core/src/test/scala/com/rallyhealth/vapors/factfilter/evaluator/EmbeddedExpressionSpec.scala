@@ -23,7 +23,7 @@ class EmbeddedExpressionSpec extends AnyWordSpec {
     val now = LocalDate.now()
     define(FactTypes.Age) {
       withFactsOfType(FactTypes.DateOfBirth).where { facts =>
-        facts.map { fact =>
+        facts.toList.map { fact =>
           fact.get(_.select(_.value).select(_.getYear)).subtractFrom(now.getYear)
         }
       }
@@ -69,13 +69,15 @@ class EmbeddedExpressionSpec extends AnyWordSpec {
 
     def insideProbOfWeightloss(cond: ValCondExpr[Double, Unit]): RootExpr[Boolean, Unit] = {
       withFactsOfType(FactTypes.ProbabilityToUse).where {
-        _.flatMap {
-          _.getFoldable[List, Double] {
-            _.select(_.value).select(_.scores).atKey("weightloss").to(List)
+        _.toList
+          .flatMap {
+            _.getFoldable {
+              _.select(_.value).select(_.scores).atKey("weightloss").to(List)
+            }
           }
-        }.exists {
-          _.embed(cond)
-        }
+          .exists {
+            _.embed(cond)
+          }
       }
     }
 
@@ -163,7 +165,7 @@ class EmbeddedExpressionSpec extends AnyWordSpec {
 
       "disallows embedding an invalid return type" in {
         val listOfNumberExpr = withFactsOfType(FactTypes.ProbabilityToUse).where {
-          _.flatMap {
+          _.toList.flatMap {
             _.getFoldable(_.select(_.value).select(_.scores).atKey("weightloss").to(List))
           }
         }
@@ -233,8 +235,8 @@ class EmbeddedExpressionSpec extends AnyWordSpec {
 
       "disallows embedding an invalid return type" in {
         val listOfNumberExpr = withFactsOfType(FactTypes.ProbabilityToUse).where {
-          _.flatMap {
-            _.getFoldable(_.select(_.value).select(_.scores).atKey("weightloss").to(List))
+          _.toList.flatMap {
+            _.getFoldable(_.select(_.value).select(_.scores).atKey("weightloss").asIterable.to(List))
           }
         }
         assertDoesNotCompile {

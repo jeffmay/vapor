@@ -34,6 +34,8 @@ trait FactType[T] {
     */
   def apply(value: T): TypedFact[T] = TypedFact(this, value)
 
+  def unapply(value: Fact): Option[TypedFact[T]] = cast(value)
+
   /**
     * Safely cast the given fact to this type.
     */

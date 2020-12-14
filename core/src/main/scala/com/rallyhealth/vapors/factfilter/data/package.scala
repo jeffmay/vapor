@@ -16,6 +16,8 @@ package object data {
 
   final type FactSet = SortedSet[Fact]
 
+  final type TypedFactSet[T] = SortedSet[TypedFact[T]]
+
   /**
     * A [[NamedLens]] defined over a [[TypedFact]] of a known type.
     */

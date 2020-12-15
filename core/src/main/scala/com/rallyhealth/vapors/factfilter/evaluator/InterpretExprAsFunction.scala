@@ -14,10 +14,10 @@ import scala.collection.immutable.BitSet
 final class InterpretExprAsFunction[F[_] : Foldable, V, P]
   extends Expr.Visitor[F, V, P, Lambda[r => Input[F, V] => ExprResult[F, V, r, P]]] {
 
-  import com.rallyhealth.vapors.core.syntax.math._
   import cats.instances.list._
   import cats.instances.tuple._
   import cats.syntax.all._
+  import com.rallyhealth.vapors.core.syntax.math._
 
   override def visitAddOutputs[R : Addition](
     expr: Expr.AddOutputs[F, V, R, P],

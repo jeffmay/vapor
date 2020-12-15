@@ -5,7 +5,7 @@ import cats.{FlatMap, Foldable, Functor, Show, Traverse}
 import com.rallyhealth.vapors.core.algebra.Expr
 import com.rallyhealth.vapors.core.data.Window
 import com.rallyhealth.vapors.core.logic.{Conjunction, Disjunction, Negation}
-import com.rallyhealth.vapors.core.math.{Addition, Subtraction}
+import com.rallyhealth.vapors.core.math.{Addition, Negative, Subtraction}
 import com.rallyhealth.vapors.factfilter.data.ExtractBoolean
 import com.rallyhealth.vapors.factfilter.evaluator.DisplayExpr.Output
 
@@ -81,7 +81,7 @@ final case class DisplayExpr[F[_], V, P](
 
   override def visitEmbed[R](expr: Expr.Embed[F, V, R, P]): Queue[String] = serialize(expr.embeddedExpr)
 
-  override def visitDefine[M[_] : Traverse, T](expr: Expr.Define[M, T, P]): Queue[String] = {
+  override def visitDefine[M[_] : Foldable, T](expr: Expr.Define[M, T, P]): Queue[String] = {
     s"declare$am($ap'${expr.factType}' -> '" +: serialize(expr.definitionExpr) :+ s"$bp)"
   }
 
@@ -108,6 +108,10 @@ final case class DisplayExpr[F[_], V, P](
       case (acc, expr) =>
         (acc :+ s",$ac") ++ serialize(expr)
     } :+ s"$bp)"
+  }
+
+  override def visitNegativeOutput[R : Negative](expr: Expr.NegativeOutput[F, V, R, P]): Queue[String] = {
+    "-" +: serialize(expr.inputExpr)
   }
 
   override def visitNot[R](expr: Expr.Not[F, V, R, P])(implicit RN: Negation[R]): Queue[String] = {

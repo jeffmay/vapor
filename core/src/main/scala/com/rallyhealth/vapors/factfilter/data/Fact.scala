@@ -1,5 +1,6 @@
 package com.rallyhealth.vapors.factfilter.data
 
+import cats.Order
 import com.rallyhealth.vapors.core.data.{DataPath, NamedLens}
 
 sealed abstract class Fact {
@@ -20,6 +21,9 @@ object Fact {
     factType: FactType[T],
     value: T,
   ): Fact = TypedFact(factType, value)
+
+  implicit val ordering: Ordering[Fact] = Ordering.by(_.typeInfo.name)
+  implicit val order: Order[Fact] = Order.fromOrdering
 }
 
 final case class TypedFact[A](
@@ -30,6 +34,9 @@ final case class TypedFact[A](
 }
 
 object TypedFact {
+
+  implicit def ordering[T]: Ordering[TypedFact[T]] = Fact.ordering.asInstanceOf[Ordering[TypedFact[T]]]
+  implicit def order[T]: Order[TypedFact[T]] = Order.fromOrdering
 
   final def lens[A]: NamedLens.Id[TypedFact[A]] = NamedLens.id[TypedFact[A]]
 

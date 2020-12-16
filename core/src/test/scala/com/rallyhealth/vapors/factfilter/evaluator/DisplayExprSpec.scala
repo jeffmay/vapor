@@ -12,7 +12,7 @@ class DisplayExprSpec extends AnyWordSpec {
     "display returnInput" in {
       val expr = withFactsOfType(FactTypes.Age).returnInput
       assertResult {
-        """"""
+        """withFactsOfType(FactType('age' as Int)).where(_.returnInput)"""
       } {
         DisplayExpr.serialize(expr)
       }

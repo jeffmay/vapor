@@ -27,6 +27,8 @@ import com.rallyhealth.vapors.factfilter.evaluator.DisplayExpr
   */
 sealed abstract class Expr[F[_], V, R, P] {
 
+  def nodeType: Expr.NodeType
+
   def visit[G[_]](v: Expr.Visitor[F, V, P, G]): G[R]
 
   def capture: CaptureP[F, V, R, P]
@@ -35,6 +37,24 @@ sealed abstract class Expr[F[_], V, R, P] {
 }
 
 object Expr {
+
+  /**
+    * Enumerates the [[Expr]] subclass names.
+    *
+    * This makes it easier to serialize as well as solves some problems that would otherwise require passing a useless
+    * higher-kinded parameter (because using a wildcard for a type constructor is not permitted in Scala 2)
+    */
+  sealed abstract class NodeType {
+
+    /**
+      * The simple class name of the subclass of [[Expr]]
+      *
+      * @note every subclass of Expr extends this as a case object, so the toString should match the class name.
+      */
+    final val name: String = this.toString
+  }
+
+  sealed abstract class LogicalNodeType extends NodeType
 
   import cats.{~>, Id}
 
@@ -84,8 +104,11 @@ object Expr {
     evidence: ResultSet,
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = ConstOutput
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitConstOutput(this)
   }
+
+  final case object ConstOutput extends NodeType
 
   /**
     * Returns the input [[F]] of [[V]] values as the output of this expression node.
@@ -98,8 +121,11 @@ object Expr {
     *       Instead, you just take an `inputExpr` and you can pass this node to move the input into the output.
     */
   final case class ReturnInput[F[_], V, P](capture: CaptureP[F, V, F[V], P]) extends Expr[F, V, F[V], P] {
+    override def nodeType: NodeType = ReturnInput
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[F[V]] = v.visitReturnInput(this)
   }
+
+  final case object ReturnInput extends NodeType
 
   /**
     * The input of the expression is replaced with the [[FactTable]] and the output of the [[embeddedExpr]]
@@ -115,8 +141,11 @@ object Expr {
     embeddedExpr: Expr[Id, FactTable, R, P],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = Embed
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitEmbed(this)
   }
+
+  final case object Embed extends NodeType
 
   /**
     * A common top-level expression that defines an output without any input beyond the initial [[FactTable]].
@@ -132,8 +161,11 @@ object Expr {
     subExpr: Expr[List, TypedFact[T], R, P],
     capture: CaptureP[Id, FactTable, R, P],
   ) extends Expr[Id, FactTable, R, P] {
+    override def nodeType: NodeType = WithFactsOfType
     override def visit[G[_]](v: Visitor[Id, FactTable, P, G]): G[R] = v.visitWithFactsOfType(this)
   }
+
+  final case object WithFactsOfType extends NodeType
 
   /**
     * Same as [[Define]], but captures and hides common type parameters to avoid issues with wild-cards on
@@ -157,8 +189,11 @@ object Expr {
     definitionExpr: Expr[Id, FactTable, M[T], P],
     capture: CaptureP[Id, FactTable, List[Fact], P],
   ) extends Definition[P] {
+    override def nodeType: NodeType = Define
     override def visit[G[_]](v: Visitor[Id, FactTable, P, G]): G[List[Fact]] = v.visitDefine(this)
   }
+
+  final case object Define extends NodeType
 
   /**
     * Combines all [[Definition]]s and adds the resulting facts to the [[FactTable]], which is then provided
@@ -176,8 +211,11 @@ object Expr {
     subExpr: Expr[F, V, R, P],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = UsingDefinitions
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitUsingDefinitions(this)
   }
+
+  final case object UsingDefinitions extends NodeType
 
   /**
     * Returns the [[Conjunction]] of all results of the given input expressions.
@@ -195,8 +233,11 @@ object Expr {
     inputExprList: NonEmptyList[Expr[F, V, R, P]],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = And
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitAnd(this)
   }
+
+  final case object And extends LogicalNodeType
 
   /**
     * Returns the [[Disjunction]] of all results of the given input expressions.
@@ -214,8 +255,11 @@ object Expr {
     inputExprList: NonEmptyList[Expr[F, V, R, P]],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = Or
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitOr(this)
   }
+
+  final case object Or extends LogicalNodeType
 
   /**
     * Negates the output from the given [[inputExpr]], but keeps the same evidence.
@@ -224,8 +268,11 @@ object Expr {
     inputExpr: Expr[F, V, R, P],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = Not
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitNot(this)
   }
+
+  final case object Not extends LogicalNodeType
 
   /**
     * Conditional expression that depends on the output of a given boolean expression to determine whether to
@@ -239,8 +286,11 @@ object Expr {
     elseExpr: Expr[F, V, R, P],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = When
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitWhen(this)
   }
+
+  final case object When extends NodeType
 
   /**
     * Uses a [[NamedLens]] to select a value from the output of the given [[inputExpr]] and returns it as output.
@@ -252,8 +302,11 @@ object Expr {
     lens: NamedLens[S, R],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = SelectFromOutput
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitSelectFromOutput(this)
   }
+
+  final case object SelectFromOutput extends NodeType
 
   /**
     * [[Foldable.collectFoldSome]] every element in the output of the given [[inputExpr]].
@@ -266,8 +319,11 @@ object Expr {
     collectExpr: Expr[Id, U, Option[R], P],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = CollectFromOutput
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitCollectSomeOutput(this)
   }
+
+  final case object CollectFromOutput extends NodeType
 
   /**
     * [[FlatMap.flatMap]] every element in the output of the given [[inputExpr]].
@@ -279,8 +335,11 @@ object Expr {
     flatMapExpr: Expr[Id, U, M[R], P],
     capture: CaptureP[F, V, M[R], P],
   ) extends Expr[F, V, M[R], P] {
+    override def nodeType: NodeType = FlatMapOutput
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[M[R]] = v.visitFlatMapOutput(this)
   }
+
+  final case object FlatMapOutput extends NodeType
 
   /**
     * [[Functor.map]] every element in the output of the given [[inputExpr]].
@@ -292,8 +351,11 @@ object Expr {
     mapExpr: Expr[Id, U, R, P],
     capture: CaptureP[F, V, M[R], P],
   ) extends Expr[F, V, M[R], P] {
+    override def nodeType: NodeType = MapOutput
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[M[R]] = v.visitMapOutput(this)
   }
+
+  final case object MapOutput extends NodeType
 
   /**
     * Returns `true` if at least one element in the output of the given [[inputExpr]] meets the given [[conditionExpr]].
@@ -308,8 +370,11 @@ object Expr {
     conditionExpr: Expr[Id, U, Boolean, P],
     capture: CaptureP[F, V, Boolean, P],
   ) extends Expr[F, V, Boolean, P] {
+    override def nodeType: NodeType = ExistsInOutput
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[Boolean] = v.visitExistsInOutput(this)
   }
+
+  final case object ExistsInOutput extends NodeType
 
   /**
     * Adds the results of all expressions in [[inputExprList]] using the provided definition for [[Addition]].
@@ -318,8 +383,11 @@ object Expr {
     inputExprList: NonEmptyList[Expr[F, V, R, P]],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = AddOutputs
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitAddOutputs(this)
   }
+
+  final case object AddOutputs extends NodeType
 
   /**
     * Subtracts the results of all expressions in [[inputExprList]] using the provided definition for [[Subtraction]].
@@ -330,8 +398,11 @@ object Expr {
     inputExprList: NonEmptyList[Expr[F, V, R, P]],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = SubtractOutputs
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitSubtractOutputs(this)
   }
+
+  final case object SubtractOutputs extends NodeType
 
   /**
     * Returns the negative result value of [[inputExpr]] using the provided definition for [[Negative]].
@@ -340,8 +411,11 @@ object Expr {
     inputExpr: Expr[F, V, R, P],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
+    override def nodeType: NodeType = NegativeOutput
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitNegativeOutput(this)
   }
+
+  final case object NegativeOutput extends NodeType
 
   /**
     * Checks if the result of the [[inputExpr]] is contained within the given [[window]].
@@ -355,6 +429,9 @@ object Expr {
     window: Window[R],
     capture: CaptureP[F, V, Boolean, P],
   ) extends Expr[F, V, Boolean, P] {
+    override def nodeType: NodeType = OutputWithinWindow
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[Boolean] = v.visitOutputWithinWindow(this)
   }
+
+  final case object OutputWithinWindow extends NodeType
 }

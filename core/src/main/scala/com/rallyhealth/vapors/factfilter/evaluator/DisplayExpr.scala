@@ -1,7 +1,7 @@
 package com.rallyhealth.vapors.factfilter.evaluator
 
 import cats.kernel.Monoid
-import cats.{FlatMap, Foldable, Functor, Show, Traverse}
+import cats.{FlatMap, Foldable, Functor, Show}
 import com.rallyhealth.vapors.core.algebra.Expr
 import com.rallyhealth.vapors.core.data.Window
 import com.rallyhealth.vapors.core.logic.{Conjunction, Disjunction, Negation}

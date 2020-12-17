@@ -1,5 +1,6 @@
 package com.rallyhealth.vapors.factfilter.data
 
+import cats.instances.order._
 import cats.{Eq, Monoid}
 import com.rallyhealth.vapors.core.data.Indexed
 

@@ -17,6 +17,11 @@ trait FactType[T] {
   def name: String
 
   /**
+    * Definition for how to order fact values.
+    */
+  def order: Order[T]
+
+  /**
     * The unique type name plus type information.
     */
   final lazy val fullName: String = s"'$name' as ${tt.tpe}"
@@ -71,9 +76,10 @@ trait FactType[T] {
 
 object FactType {
 
-  def apply[T : ClassTag : TypeTag](name: String): FactType[T] = Simple(name)
+  def apply[T : ClassTag : TypeTag : Order](name: String): FactType[T] = Simple(name)
 
-  private final case class Simple[T : ClassTag : TypeTag](name: String) extends FactType[T] {
+  private final case class Simple[T : ClassTag : TypeTag : Order](name: String) extends FactType[T] {
+    override val order: Order[T] = Order[T]
     override protected[vapors] val ct: ClassTag[T] = implicitly
     override protected[vapors] val tt: TypeTag[T] = implicitly
     override def productPrefix: String = "FactType"

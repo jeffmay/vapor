@@ -1,7 +1,8 @@
 package com.rallyhealth.vapors.factfilter.data
 
-import cats.Monoid
+import cats.{Monoid, Order}
 import cats.data.NonEmptySet
+import cats.instances.order._
 
 import scala.collection.immutable.SortedSet
 
@@ -13,7 +14,11 @@ final class Evidence private (val factSet: SortedSet[Fact]) extends AnyVal {
   @inline def ++(that: Evidence): Evidence = union(that)
   @inline def |(that: Evidence): Evidence = union(that)
 
-  def ofType[T](factTypeSet: FactTypeSet[T]): Option[NonEmptySet[TypedFact[T]]] = {
+  def ofType[T](
+    factTypeSet: FactTypeSet[T],
+  )(implicit
+    orderFacts: Order[TypedFact[T]],
+  ): Option[NonEmptySet[TypedFact[T]]] = {
     val matchingFacts = SortedSet.from(this.factSet.iterator.collect(factTypeSet.collector))
     NonEmptySet.fromSet(matchingFacts)
   }

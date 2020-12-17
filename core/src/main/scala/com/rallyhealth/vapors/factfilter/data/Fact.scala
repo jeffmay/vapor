@@ -1,6 +1,7 @@
 package com.rallyhealth.vapors.factfilter.data
 
 import cats.Order
+import cats.syntax.all._
 import com.rallyhealth.vapors.core.data.{DataPath, NamedLens}
 
 sealed abstract class Fact {
@@ -22,8 +23,35 @@ object Fact {
     value: T,
   ): Fact = TypedFact(factType, value)
 
-  implicit val ordering: Ordering[Fact] = Ordering.by(_.typeInfo.name)
-  implicit val order: Order[Fact] = Order.fromOrdering
+  val orderByFactValue: Order[Fact] = { (x, y) =>
+    def maybeXCompared =
+      x.typeInfo
+        .cast(y)
+        .map(yAsX => x.typeInfo.order.compare(x.value, yAsX.value))
+
+    def maybeYCompared =
+      y.typeInfo
+        .cast(x)
+        .map(xAsY => y.typeInfo.order.compare(xAsY.value, y.value))
+
+    def fallbackToCompareAsStrings =
+      if (x.value == y.value) 0
+      else Order[String].compare(x.value.toString, y.value.toString)
+
+    maybeXCompared.orElse(maybeYCompared).getOrElse(fallbackToCompareAsStrings)
+  }
+
+  def orderByFactName(nameOrder: Order[String]): Order[Fact] = {
+    nameOrder.contramap(_.typeInfo.name)
+  }
+
+  // This will be used a lot, so cache it
+  private final val defaultOrder: Order[Fact] = orderByFactName(Order[String])
+
+  implicit def order(implicit orderFactNames: Order[String]): Order[Fact] = {
+    if (orderFactNames == cats.instances.string.catsKernelStdOrderForString) defaultOrder
+    else Order.whenEqual(orderByFactName(orderFactNames), orderByFactValue)
+  }
 }
 
 final case class TypedFact[A](
@@ -35,8 +63,16 @@ final case class TypedFact[A](
 
 object TypedFact {
 
-  implicit def ordering[T]: Ordering[TypedFact[T]] = Fact.ordering.asInstanceOf[Ordering[TypedFact[T]]]
-  implicit def order[T]: Order[TypedFact[T]] = Order.fromOrdering
+  def orderByTypedFactValue[T]: Order[TypedFact[T]] = { (x, y) =>
+    x.typeInfo.order.compare(x.value, y.value)
+  }
+
+  implicit def order[T](implicit orderFactNames: Order[String]): Order[TypedFact[T]] = { (x, y) =>
+    orderFactNames.compare(x.typeInfo.name, y.typeInfo.name) match {
+      case 0 => orderByTypedFactValue[T].compare(x, y)
+      case orderByName => orderByName
+    }
+  }
 
   final def lens[A]: NamedLens.Id[TypedFact[A]] = NamedLens.id[TypedFact[A]]
 

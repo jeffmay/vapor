@@ -1,5 +1,6 @@
 package com.rallyhealth.vapors.factfilter
 
+import cats.Order
 import cats.data.NonEmptyList
 import com.rallyhealth.vapors.core.data.NamedLens
 
@@ -34,4 +35,6 @@ package object data {
   final type FactsOfType[T] = NonEmptyList[TypedFact[T]]
 
   final type TypedFacts[T] = List[TypedFact[T]]
+
+  final type OrderTypedFacts[T] = Order[TypedFact[T]]
 }

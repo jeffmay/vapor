@@ -1,31 +1,35 @@
 package com.rallyhealth.vapors.factfilter
 
-import java.time.{Instant, LocalDate, ZoneOffset}
-
-import cats.{Eq, Order}
+import cats.Order
 import cats.data.NonEmptyList
 import com.rallyhealth.vapors.factfilter.data.{FactTable, FactType, FactTypeSet}
 import com.rallyhealth.vapors.factfilter.extras.ExtractInstant
 
+import java.time.{Instant, LocalDate, ZoneOffset}
+
 object Example {
 
+  import com.rallyhealth.vapors.core.data.TimeOrder.LatestFirst._
+
   final case class Probs(scores: Map[String, Double])
+  final object Probs {
+    implicit val order: Order[Probs] = Order.whenEqual(
+      Order.reverse(Order.by(_.scores.size)),
+      Order.by(_.scores.toSeq),
+    )
+  }
 
   sealed trait Role
   final object Role {
     case object Admin extends Role
     case object User extends Role
 
-    implicit val eq: Eq[Role] = Eq.fromUniversalEquals
-    implicit val ordering: Ordering[Role] = {
-      Ordering
-        .by[Role, Int] {
-          case Admin => 1
-          case User => 2
-        }
-        .reverse
+    implicit val order: Order[Role] = Order.reverse {
+      Order.by[Role, Int] {
+        case Admin => 1
+        case User => 2
+      }
     }
-    implicit val order: Order[Role] = Order.fromOrdering
   }
 
   trait HasTimestamp {
@@ -36,6 +40,10 @@ object Example {
 
   sealed trait Measurement extends HasTimestamp {
     def name: String
+  }
+
+  final object Measurement {
+    implicit def orderByLatestTimestamp[M <: Measurement]: Order[M] = Order.by(_.timestamp)
   }
 
   sealed trait NumericMeasurement extends Measurement {

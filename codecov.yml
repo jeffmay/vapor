@@ -1,7 +1,17 @@
 coverage:
   status:
+    patch:
+      default:
+        target: 50%
+        threshold: 0%
+        branches:
+          - master
+          - prototype
     project:
       default:
         # TODO: Use better coverage configs after adding better unit test coverage
-        target: auto
-        threshold: 10%
+        target: 50%
+        threshold: 0%
+        branches:
+          - master
+          - prototype

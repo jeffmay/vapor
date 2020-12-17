@@ -2,37 +2,32 @@ package com.rallyhealth.vapors.factfilter.data
 
 import cats.data.{NonEmptyList, NonEmptyMap, NonEmptySet}
 
-import scala.collection.immutable
+import scala.collection.immutable.{SortedMap, SortedSet}
 
-// TODO: Lazy vals for functions? Or AnyVal with defs?
-final case class FactTypeSet[A] private (typeMap: NonEmptyMap[String, FactType[A]]) {
+final case class FactTypeSet[A] private (typeMap: NonEmptyMap[String, FactType[A]]) extends AnyVal {
 
-  lazy val typeList: NonEmptyList[FactType[A]] = typeMap.toNel.map(_._2)
+  def typeList: NonEmptyList[FactType[A]] = NonEmptyList.fromListUnsafe(typeMap.toSortedMap.values.toList)
 
-  lazy val typeSet: NonEmptySet[FactType[A]] = typeList.toNes
+  def typeSet: NonEmptySet[FactType[A]] = NonEmptySet.fromSetUnsafe(SortedSet.from(typeMap.toSortedMap.values))
 
-  private lazy val castPF: PartialFunction[Fact, TypedFact[A]] = {
-    // Justification: This checks equality of the FactType at runtime, so it should be safe to cast
-    case fact @ TypedFact(factType, _) if typeMap(factType.fullName).contains(factType) =>
-      fact.asInstanceOf[TypedFact[A]]
-  }
-
-  private lazy val castF: Fact => Option[TypedFact[A]] = castPF.lift
-
-  def unapply(fact: Fact): Option[TypedFact[A]] = castF(fact)
+  def unapply(fact: Fact): Option[TypedFact[A]] = collector.lift(fact)
 
   /**
     * Checks the [[FactType]] for equality with one of the types in this set.
     *
     * @return the [[TypedFact]] as the expected type.
     */
-  def cast(fact: Fact): Option[TypedFact[A]] = castF(fact)
+  def cast(fact: Fact): Option[TypedFact[A]] = collector.lift(fact)
 
   /**
     *
     * @return a partial function for collecting facts of a specific type
     */
-  def collector: PartialFunction[Fact, TypedFact[A]] = castPF
+  def collector: PartialFunction[Fact, TypedFact[A]] = {
+    // Justification: This checks equality of the FactType at runtime, so it should be safe to cast
+    case fact @ TypedFact(factType, _) if typeMap(factType.fullName).contains(factType) =>
+      fact.asInstanceOf[TypedFact[A]]
+  }
 
 }
 
@@ -57,7 +52,6 @@ object FactTypeSet {
   def validateSet[A](types: Set[FactType[A]]): Either[String, FactTypeSet[A]] = validateList(types.toList)
 
   def validateList[A](types: List[FactType[A]]): Either[String, FactTypeSet[A]] = {
-    import cats.instances.string._
     val m = types.groupBy(_.fullName)
     val (duplicates, uniqueTypes) = m.partitionMap {
       case (name, one :: Nil) => Right((name, one))
@@ -65,7 +59,7 @@ object FactTypeSet {
     }
     if (duplicates.isEmpty) {
       NonEmptyMap
-        .fromMap(immutable.SortedMap.from(uniqueTypes))
+        .fromMap(SortedMap.from(uniqueTypes))
         .map(new FactTypeSet(_))
         .toRight("types list cannot be empty.")
     } else {

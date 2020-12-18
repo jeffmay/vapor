@@ -6,6 +6,7 @@ import cats.Order
 import java.time._
 import java.time.chrono.{ChronoLocalDate, ChronoLocalDateTime, ChronoZonedDateTime}
 
+// TODO: Move to extras module
 abstract class TimeOrder {
 
   def modify[T](order: Order[T]): Order[T]

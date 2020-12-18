@@ -5,6 +5,7 @@ import com.rallyhealth.vapors.core.algebra.Expr
 import com.rallyhealth.vapors.core.algebra.Expr.ReturnInput
 import com.rallyhealth.vapors.core.data.{NamedLens, Window}
 import com.rallyhealth.vapors.core.math.{Addition, Negative, Subtraction}
+import com.rallyhealth.vapors.factfilter.data.TypedFact
 
 import scala.collection.Factory
 
@@ -171,6 +172,13 @@ final class ValExprBuilder[V, R, P](returnOutput: Expr[Id, V, R, P])
     captureResult: CaptureP[Id, V, N[X], P],
   ): FoldOutExprBuilder[V, N, X, P] =
     new FoldOutExprBuilder(buildGetExpr(buildLens))
+
+  def value[X](
+    implicit
+    ev: R <:< TypedFact[X],
+    captureResult: CaptureResult[X],
+  ): ValExprBuilder[V, X, P] =
+    new ValExprBuilder(buildGetExpr[Id, X](_.field("value", _.value)))
 
   def in(accepted: Set[R])(implicit captureOutput: CaptureResult[Boolean]): ValExprBuilder[V, Boolean, P] =
     new ValExprBuilder(Expr.OutputWithinSet(returnOutput, accepted, captureOutput))

@@ -52,6 +52,7 @@ object Expr {
     def visitNegativeOutput[R : Negative](expr: NegativeOutput[F, V, R, P]): G[R]
     def visitNot[R : Negation](expr: Not[F, V, R, P]): G[R]
     def visitOr[R : Disjunction : ExtractBoolean](expr: Or[F, V, R, P]): G[R]
+    def visitOutputWithinSet[R](expr: OutputWithinSet[F, V, R, P]): G[Boolean]
     def visitOutputWithinWindow[R](expr: OutputWithinWindow[F, V, R, P]): G[Boolean]
     def visitReturnInput(expr: ReturnInput[F, V, P]): G[F[V]]
     def visitSelectFromOutput[S, R](expr: SelectFromOutput[F, V, S, R, P]): G[R]
@@ -340,6 +341,17 @@ object Expr {
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitNegativeOutput(this)
+  }
+
+  /**
+    * Checks if the result of the [[inputExpr]] is contained within the given set of [[accepted]] values.
+    */
+  final case class OutputWithinSet[F[_], V, R, P](
+    inputExpr: Expr[F, V, R, P],
+    accepted: Set[R],
+    capture: CaptureP[F, V, Boolean, P],
+  ) extends Expr[F, V, Boolean, P] {
+    override def visit[G[_]](v: Visitor[F, V, P, G]): G[Boolean] = v.visitOutputWithinSet(this)
   }
 
   /**

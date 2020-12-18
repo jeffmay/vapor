@@ -50,6 +50,7 @@ object ExprResult {
     def visitNegativeOutput[R](result: NegativeOutput[F, V, R, P]): G[R]
     def visitNot[R](result: Not[F, V, R, P]): G[R]
     def visitOr[R](result: Or[F, V, R, P]): G[R]
+    def visitOutputWithinSet[R](result: OutputWithinSet[F, V, R, P]): G[Boolean]
     def visitOutputWithinWindow[R](result: OutputWithinWindow[F, V, R, P]): G[Boolean]
     def visitReturnInput(result: ReturnInput[F, V, P]): G[F[V]]
     def visitSelectFromOutput[S, R](result: SelectFromOutput[F, V, S, R, P]): G[R]
@@ -218,6 +219,14 @@ object ExprResult {
     inputResult: ExprResult[F, V, R, P],
   ) extends ExprResult[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitNegativeOutput(this)
+  }
+
+  final case class OutputWithinSet[F[_], V, R, P](
+    expr: Expr.OutputWithinSet[F, V, R, P],
+    context: Context[F, V, Boolean, P],
+    inputResult: ExprResult[F, V, R, P],
+  ) extends ExprResult[F, V, Boolean, P] {
+    override def visit[G[_]](v: Visitor[F, V, P, G]): G[Boolean] = v.visitOutputWithinSet(this)
   }
 
   final case class OutputWithinWindow[F[_], V, R, P](

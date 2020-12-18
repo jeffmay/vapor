@@ -172,6 +172,9 @@ final class ValExprBuilder[V, R, P](returnOutput: Expr[Id, V, R, P])
   ): FoldOutExprBuilder[V, N, X, P] =
     new FoldOutExprBuilder(buildGetExpr(buildLens))
 
+  def in(accepted: Set[R])(implicit captureOutput: CaptureResult[Boolean]): ValExprBuilder[V, Boolean, P] =
+    new ValExprBuilder(Expr.OutputWithinSet(returnOutput, accepted, captureOutput))
+
   def add(
     rhs: R,
   )(implicit

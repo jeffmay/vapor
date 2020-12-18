@@ -192,6 +192,16 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
     }
   }
 
+  override def visitOutputWithinSet[R](
+    expr: Expr.OutputWithinSet[F, V, R, P],
+  ): Input[F, V] => ExprResult[F, V, Boolean, P] = { input =>
+    val inputResult = expr.inputExpr.visit(this)(input)
+    val isWithinSet = expr.accepted.contains(inputResult.output.value)
+    resultOfPureExpr(expr, input, isWithinSet, inputResult.output.evidence) {
+      ExprResult.OutputWithinSet(_, _, inputResult)
+    }
+  }
+
   override def visitOutputWithinWindow[R](
     expr: Expr.OutputWithinWindow[F, V, R, P],
   ): Input[F, V] => ExprResult[F, V, Boolean, P] = { input =>

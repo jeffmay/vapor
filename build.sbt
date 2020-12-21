@@ -7,7 +7,6 @@ ThisBuild / licenses := Seq("MIT" -> url("http://opensource.org/licenses/MIT"))
 ThisBuild / scalaVersion := Dependencies.Scala_2_13
 
 ThisBuild / scalacOptions ++= Seq(
-  "-deprecation:false",
   "-feature",
   "-language:higherKinds",
   "-language:implicitConversions",

@@ -12,6 +12,7 @@ ThisBuild / scalacOptions ++= Seq(
   "-language:higherKinds",
   "-language:implicitConversions",
   "-language:experimental.macros",
+  "-opt-warnings:at-inline-failed",
   "-Xfatal-warnings",
   "-Ymacro-annotations",
 )

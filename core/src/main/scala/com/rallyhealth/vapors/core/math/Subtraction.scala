@@ -15,5 +15,5 @@ trait Subtraction[A] {
 
 object Subtraction extends NumericalImplicits {
 
-  def apply[A](implicit A: Subtraction[A]): Subtraction[A] = A
+  @inline final def apply[A](implicit A: Subtraction[A]): Subtraction[A] = A
 }

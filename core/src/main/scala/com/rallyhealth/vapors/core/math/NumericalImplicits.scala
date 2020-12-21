@@ -11,7 +11,7 @@ private[math] trait NumericalImplicits {
 /**
   * Defines all arithmetic type-classes from Scala's [[Numeric]] definition.
   */
-final class FromNumeric[A : Numeric] extends Addition[A] with Subtraction[A] with Negative[A] {
+final class FromNumeric[A : Numeric] extends Addition[A] with Subtraction[A] with Negative[A] with Multiplication[A] {
   import Numeric.Implicits._
 
   override def add(
@@ -23,6 +23,11 @@ final class FromNumeric[A : Numeric] extends Addition[A] with Subtraction[A] wit
     lhs: A,
     rhs: A,
   ): A = lhs - rhs
+
+  override def multiply(
+    lhs: A,
+    rhs: A,
+  ): A = lhs * rhs
 
   override def negative(value: A): A = -value
 }

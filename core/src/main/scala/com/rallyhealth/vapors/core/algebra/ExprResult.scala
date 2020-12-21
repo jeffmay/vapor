@@ -2,6 +2,7 @@ package com.rallyhealth.vapors.core.algebra
 
 import cats.kernel.Monoid
 import cats.{~>, Eval, Foldable, Id}
+import com.rallyhealth.vapors.core.math.Multiplication
 import com.rallyhealth.vapors.factfilter.data.{Fact, FactSet, FactTable, TypedFact}
 import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction.{Input, Output}
 
@@ -47,6 +48,7 @@ object ExprResult {
     def visitExistsInOutput[M[_] : Foldable, U](result: ExistsInOutput[F, V, M, U, P]): G[Boolean]
     def visitFlatMapOutput[M[_], U, R](result: FlatMapOutput[F, V, M, U, R, P]): G[M[R]]
     def visitMapOutput[M[_], U, R](result: MapOutput[F, V, M, U, R, P]): G[M[R]]
+    def visitMultiplyOutputs[R](result: MultiplyOutputs[F, V, R, P]): G[R]
     def visitNegativeOutput[R](result: NegativeOutput[F, V, R, P]): G[R]
     def visitNot[R](result: Not[F, V, R, P]): G[R]
     def visitOr[R](result: Or[F, V, R, P]): G[R]
@@ -211,6 +213,14 @@ object ExprResult {
     subResultList: List[ExprResult[F, V, R, P]],
   ) extends ExprResult[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitSubtractOutputs(this)
+  }
+
+  final case class MultiplyOutputs[F[_], V, R, P](
+    expr: Expr.MultiplyOutputs[F, V, R, P],
+    context: Context[F, V, R, P],
+    subResultList: List[ExprResult[F, V, R, P]],
+  ) extends ExprResult[F, V, R, P] {
+    override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitMultiplyOutputs(this)
   }
 
   final case class NegativeOutput[F[_], V, R, P](

@@ -4,7 +4,7 @@ import cats._
 import cats.data.Chain
 import com.rallyhealth.vapors.core.algebra.{Expr, ExprResult}
 import com.rallyhealth.vapors.core.logic._
-import com.rallyhealth.vapors.core.math.{Addition, Negative, Subtraction}
+import com.rallyhealth.vapors.core.math.{Addition, Multiplication, Negative, Subtraction}
 import com.rallyhealth.vapors.factfilter.data._
 import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction.{Input, Output}
 
@@ -157,6 +157,19 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
     val subOps = allResults.toList
     resultOfManySubExpr(expr, input, allValues, allEvidence, allParams) {
       ExprResult.MapOutput(_, _, defResult, subOps)
+    }
+  }
+
+  override def visitMultiplyOutputs[R : Multiplication](
+    expr: Expr.MultiplyOutputs[F, V, R, P],
+  ): Input[F, V] => ExprResult[F, V, R, P] = { input =>
+    val allResults = expr.inputExprList.map(_.visit(this)(input))
+    val allResultsList = allResults.toList
+    val addResult = allResultsList.map(_.output.value).reduceLeft(_ * _)
+    val allEvidence = allResultsList.foldMap(_.output.evidence)
+    val allParams = allResultsList.map(_.param)
+    resultOfManySubExpr(expr, input, addResult, allEvidence, allParams) {
+      ExprResult.MultiplyOutputs(_, _, allResultsList)
     }
   }
 

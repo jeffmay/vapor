@@ -255,6 +255,15 @@ final class ValExprBuilder[V, R, P](returnOutput: Expr[Id, V, R, P])
   ): ValExprBuilder[V, R, P] =
     new ValExprBuilder(ExprDsl.multiply(returnOutput, ExprDsl.const(rhs)))
 
+  def divide(
+    rhs: R,
+  )(implicit
+    R: Division[R],
+    captureInput: CaptureAllInput,
+    captureResult: CaptureResult[R],
+  ): ValExprBuilder[V, R, P] =
+    this / rhs
+
   def /(
     rhs: R,
   )(implicit

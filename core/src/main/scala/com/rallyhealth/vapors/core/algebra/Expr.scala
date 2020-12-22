@@ -5,7 +5,7 @@ import cats.kernel.Monoid
 import cats.{FlatMap, Foldable, Functor}
 import com.rallyhealth.vapors.core.data.{NamedLens, Window}
 import com.rallyhealth.vapors.core.logic.{Conjunction, Disjunction, Negation}
-import com.rallyhealth.vapors.core.math.{Addition, Multiplication, Negative, Subtraction}
+import com.rallyhealth.vapors.core.math.{Addition, Division, Multiplication, Negative, Subtraction}
 import com.rallyhealth.vapors.factfilter.data._
 import com.rallyhealth.vapors.factfilter.dsl.CaptureP
 
@@ -45,6 +45,7 @@ object Expr {
     def visitCollectSomeOutput[M[_] : Foldable, U, R : Monoid](expr: CollectFromOutput[F, V, M, U, R, P]): G[R]
     def visitConstOutput[R](expr: ConstOutput[F, V, R, P]): G[R]
     def visitDefine[M[_] : Foldable, T](expr: Define[M, T, P]): G[FactSet]
+    def visitDivideOutputs[R : Division](expr: DivideOutputs[F, V, R, P]): G[R]
     def visitEmbed[R](expr: Embed[F, V, R, P]): G[R]
     def visitExistsInOutput[M[_] : Foldable, U](expr: ExistsInOutput[F, V, M, U, P]): G[Boolean]
     def visitFlatMapOutput[M[_] : Foldable : FlatMap, U, X](expr: FlatMapOutput[F, V, M, U, X, P]): G[M[X]]
@@ -342,6 +343,16 @@ object Expr {
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitMultiplyOutputs(this)
+  }
+
+  /**
+    * Multiplies the results of all expressions in [[inputExprList]] using the provided definition for [[Multiplication]].
+    */
+  final case class DivideOutputs[F[_], V, R : Division, P](
+    inputExprList: NonEmptyList[Expr[F, V, R, P]],
+    capture: CaptureP[F, V, R, P],
+  ) extends Expr[F, V, R, P] {
+    override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitDivideOutputs(this)
   }
 
   /**

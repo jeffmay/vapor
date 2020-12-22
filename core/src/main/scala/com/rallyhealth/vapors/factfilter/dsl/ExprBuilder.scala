@@ -4,7 +4,7 @@ import cats.{FlatMap, Foldable, Functor, Id, Order}
 import com.rallyhealth.vapors.core.algebra.Expr
 import com.rallyhealth.vapors.core.algebra.Expr.ReturnInput
 import com.rallyhealth.vapors.core.data.{NamedLens, Window}
-import com.rallyhealth.vapors.core.math.{Addition, Negative, Subtraction}
+import com.rallyhealth.vapors.core.math.{Addition, Division, Negative, Subtraction}
 import com.rallyhealth.vapors.factfilter.data.TypedFact
 
 import scala.collection.Factory
@@ -236,6 +236,24 @@ final class ValExprBuilder[V, R, P](returnOutput: Expr[Id, V, R, P])
     postOutput: CaptureResult[R],
   ): ValExprBuilder[V, R, P] =
     new ValExprBuilder(ExprDsl.subtract(ExprDsl.const(lhs), returnOutput))
+
+  def /(
+    rhs: R,
+  )(implicit
+    R: Division[R],
+    captureInput: CaptureAllInput,
+    captureResult: CaptureResult[R],
+  ): ValExprBuilder[V, R, P] =
+    new ValExprBuilder(ExprDsl.divide(returnOutput, ExprDsl.const(rhs)))
+
+  def divideFrom(
+    lhs: R,
+  )(implicit
+    R: Division[R],
+    captureInput: CaptureAllInput,
+    captureResult: CaptureResult[R],
+  ): ValExprBuilder[V, R, P] =
+    new ValExprBuilder(ExprDsl.divide(ExprDsl.const(lhs), returnOutput))
 
   def unary_-(
     implicit

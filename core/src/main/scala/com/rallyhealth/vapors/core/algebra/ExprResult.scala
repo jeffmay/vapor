@@ -44,6 +44,7 @@ object ExprResult {
     def visitCollectFromOutput[M[_] : Foldable, U, R : Monoid](result: CollectFromOutput[F, V, M, U, R, P]): G[R]
     def visitConstOutput[R](result: ConstOutput[F, V, R, P]): G[R]
     def visitDeclare[M[_], T](result: Define[F, V, M, T, P]): G[FactSet]
+    def visitDivideOutputs[R](result: DivideOutputs[F, V, R, P]): G[R]
     def visitEmbed[R](result: Embed[F, V, R, P]): G[R]
     def visitExistsInOutput[M[_] : Foldable, U](result: ExistsInOutput[F, V, M, U, P]): G[Boolean]
     def visitFlatMapOutput[M[_], U, R](result: FlatMapOutput[F, V, M, U, R, P]): G[M[R]]
@@ -221,6 +222,14 @@ object ExprResult {
     subResultList: List[ExprResult[F, V, R, P]],
   ) extends ExprResult[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitMultiplyOutputs(this)
+  }
+
+  final case class DivideOutputs[F[_], V, R, P](
+    expr: Expr.DivideOutputs[F, V, R, P],
+    context: Context[F, V, R, P],
+    subResultList: List[ExprResult[F, V, R, P]],
+  ) extends ExprResult[F, V, R, P] {
+    override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitDivideOutputs(this)
   }
 
   final case class NegativeOutput[F[_], V, R, P](

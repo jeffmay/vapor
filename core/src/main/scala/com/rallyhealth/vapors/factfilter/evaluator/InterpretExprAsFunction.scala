@@ -4,7 +4,7 @@ import cats._
 import cats.data.Chain
 import com.rallyhealth.vapors.core.algebra.{Expr, ExprResult}
 import com.rallyhealth.vapors.core.logic._
-import com.rallyhealth.vapors.core.math.{Addition, Multiplication, Negative, Subtraction}
+import com.rallyhealth.vapors.core.math.{Addition, Division, Multiplication, Negative, Subtraction}
 import com.rallyhealth.vapors.factfilter.data._
 import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction.{Input, Output}
 
@@ -86,6 +86,19 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
     val output = Output(definedFactSet, definitionResult.output.evidence)
     val postParam = expr.capture.foldToParam(expr, definitionContext, output, definitionResult.param :: Nil)
     ExprResult.Define(expr, ExprResult.Context(input, output, postParam), definitionResult)
+  }
+
+  override def visitDivideOutputs[R : Division](
+    expr: Expr.DivideOutputs[F, V, R, P],
+  ): Input[F, V] => ExprResult[F, V, R, P] = { input =>
+    val allResults = expr.inputExprList.map(_.visit(this)(input))
+    val allResultsList = allResults.toList
+    val addResult = allResultsList.map(_.output.value).reduceLeft(_ / _)
+    val allEvidence = allResultsList.foldMap(_.output.evidence)
+    val allParams = allResultsList.map(_.param)
+    resultOfManySubExpr(expr, input, addResult, allEvidence, allParams) {
+      ExprResult.DivideOutputs(_, _, allResultsList)
+    }
   }
 
   override def visitEmbed[R](expr: Expr.Embed[F, V, R, P]): Input[F, V] => ExprResult[F, V, R, P] = { input =>

@@ -31,7 +31,7 @@ trait CaptureP[F[_], V, R, P] {
   ): Eval[P]
 }
 
-object CaptureP {
+object CaptureP extends LowPriorityCaptureUnitImplicit {
 
   /**
     * Captures the type parameter from facts with a value of type [[T]].
@@ -107,9 +107,9 @@ object CaptureP {
   abstract class AsMonoidCompanion[P](protected implicit final val P: Monoid[P]) {
     implicit def captureParamAndPass[F[_], V, R]: CaptureP[F, V, R, P] = new AsMonoidAndPass[F, V, R, P]
   }
+}
 
-  object unit {
+sealed trait LowPriorityCaptureUnitImplicit {
 
-    implicit def captureUnit[F[_], V, R]: CaptureP[F, V, R, Unit] = (_, _, _, _) => Eval.Unit
-  }
+  implicit def captureUnit[F[_], V, R]: CaptureP[F, V, R, Unit] = (_, _, _, _) => Eval.Unit
 }

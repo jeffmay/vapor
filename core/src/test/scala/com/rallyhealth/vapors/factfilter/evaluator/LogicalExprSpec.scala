@@ -13,8 +13,6 @@ import org.scalatest.wordspec.AnyWordSpec
 
 class LogicalExprSpec extends AnyWordSpec {
 
-  import CaptureP.unit._
-
   private type LogicExpr[R] = Expr[Id, Unit, R, Unit]
 
   private type LogicOpBuilder[R] =

@@ -13,7 +13,6 @@ import java.time.LocalDate
 class EmbeddedExpressionSpec extends AnyWordSpec {
 
   import cats.instances.all._
-  import com.rallyhealth.vapors.factfilter.dsl.CaptureP.unit._
 
   // TODO: Do the real computation here
   // TODO: Make a named function to call out to "dateCompare()" (maybe a primitive algebra?)

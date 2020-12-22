@@ -6,7 +6,7 @@ import com.rallyhealth.vapors.core.algebra.Expr.Definition
 import com.rallyhealth.vapors.core.algebra.{Expr, ExprResult}
 import com.rallyhealth.vapors.core.data.{NamedLens, Window}
 import com.rallyhealth.vapors.core.logic.{Conjunction, Disjunction, Negation}
-import com.rallyhealth.vapors.core.math.{Addition, Division, Negative, Subtraction}
+import com.rallyhealth.vapors.core.math.{Addition, Division, Multiplication, Negative, Subtraction}
 import com.rallyhealth.vapors.factfilter.data._
 import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction
 
@@ -200,6 +200,14 @@ object ExprDsl extends ExprBuilderSyntax {
     post: CaptureP[F, V, R, P],
   ): Expr[F, V, R, P] =
     Expr.SubtractOutputs(NonEmptyList.of(lhs, rhs), post)
+
+  def multiply[F[_], V, R : Multiplication, P](
+    lhs: Expr[F, V, R, P],
+    rhs: Expr[F, V, R, P],
+  )(implicit
+    post: CaptureP[F, V, R, P],
+  ): Expr[F, V, R, P] =
+    Expr.MultiplyOutputs(NonEmptyList.of(lhs, rhs), post)
 
   def divide[F[_], V, R : Division, P](
     lhs: Expr[F, V, R, P],

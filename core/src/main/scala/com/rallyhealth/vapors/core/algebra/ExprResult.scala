@@ -2,8 +2,7 @@ package com.rallyhealth.vapors.core.algebra
 
 import cats.kernel.Monoid
 import cats.{~>, Eval, Foldable, Id}
-import com.rallyhealth.vapors.core.math.Multiplication
-import com.rallyhealth.vapors.factfilter.data.{Fact, FactSet, FactTable, TypedFact}
+import com.rallyhealth.vapors.factfilter.data.{ExtractFromAnyInput, FactSet, FactTable, TypedFact}
 import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction.{Input, Output}
 
 import scala.collection.BitSet
@@ -45,7 +44,8 @@ object ExprResult {
     def visitConstOutput[R](result: ConstOutput[F, V, R, P]): G[R]
     def visitDeclare[M[_], T](result: Define[F, V, M, T, P]): G[FactSet]
     def visitDivideOutputs[R](result: DivideOutputs[F, V, R, P]): G[R]
-    def visitEmbed[R](result: Embed[F, V, R, P]): G[R]
+    def visitEmbed[U : ExtractFromAnyInput, R](result: Embed[F, V, U, R, P]): G[R]
+//    def visitEmbedUnit[R](result: EmbedUnit[F, V, R, P]): G[R]
     def visitExistsInOutput[M[_] : Foldable, U](result: ExistsInOutput[F, V, M, U, P]): G[Boolean]
     def visitFlatMapOutput[M[_], U, R](result: FlatMapOutput[F, V, M, U, R, P]): G[M[R]]
     def visitMapOutput[M[_], U, R](result: MapOutput[F, V, M, U, R, P]): G[M[R]]
@@ -77,7 +77,7 @@ object ExprResult {
    */
 
   final case class ConstOutput[F[_], V, R, P](
-    expr: Expr.ConstOutput[F, V, R, P],
+    expr: Expr.ConstOutput[R, P],
     context: Context[F, V, R, P],
   ) extends ExprResult[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitConstOutput(this)
@@ -90,13 +90,21 @@ object ExprResult {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[F[V]] = v.visitReturnInput(this)
   }
 
-  final case class Embed[F[_], V, R, P](
-    expr: Expr.Embed[F, V, R, P],
+  final case class Embed[F[_], V, U : ExtractFromAnyInput, R, P](
+    expr: Expr.Embed[F, V, U, R, P],
     context: Context[F, V, R, P],
-    embeddedResult: ExprResult[Id, FactTable, R, P],
+    embeddedResult: ExprResult[Id, U, R, P],
   ) extends ExprResult[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitEmbed(this)
   }
+
+//  final case class EmbedUnit[F[_], V, R, P](
+//    expr: Expr.EmbedUnit[F, V, R, P],
+//    context: Context[F, V, R, P],
+//    embeddedResult: ExprResult[Id, Unit, R, P],
+//  ) extends ExprResult[F, V, R, P] {
+//    override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitEmbedUnit(this)
+//  }
 
   final case class WithFactsOfType[F[_], V, T, R, P](
     expr: Expr.WithFactsOfType[T, R, P],

@@ -6,7 +6,7 @@ import com.rallyhealth.vapors.core.algebra.Expr.Definition
 import com.rallyhealth.vapors.core.algebra.{Expr, ExprResult}
 import com.rallyhealth.vapors.core.data.{NamedLens, Window}
 import com.rallyhealth.vapors.core.logic.{Conjunction, Disjunction, Negation}
-import com.rallyhealth.vapors.core.math.{Addition, Division, Multiplication, Negative, Subtraction}
+import com.rallyhealth.vapors.core.math._
 import com.rallyhealth.vapors.factfilter.data._
 import com.rallyhealth.vapors.factfilter.evaluator.InterpretExprAsFunction
 
@@ -30,26 +30,29 @@ object ExprDsl extends ExprBuilderSyntax {
     InterpretExprAsFunction(query)(Input.fromFactTable(facts))
   }
 
+  // TODO: Should all constants be their own evidence? Every constant would require a fact type.
+  //       (for example, see the factValue method)...
+
   /**
     * Lifts the given value into the output of an expression with no evidence.
     */
-  def const[F[_], V, R, P](
+  def const[R, P](
     value: R,
     evidence: Evidence = Evidence.none,
   )(implicit
-    post: CaptureP[F, V, R, P],
-  ): Expr[F, V, R, P] =
+    post: CaptureP[Id, Unit, R, P],
+  ): Expr.ConstOutput[R, P] =
     Expr.ConstOutput(value, evidence, post)
 
   /**
     * Uses the value of a given fact and also considers the fact as evidence of its own value.
     */
-  def factValue[F[_], V, R, P](
+  def factValue[R, P](
     typedFact: TypedFact[R],
   )(implicit
-    post: CaptureP[F, V, R, P],
-  ): Expr[F, V, R, P] =
-    const(typedFact.value, Evidence(typedFact))
+    post: CaptureP[Id, Unit, R, P],
+  ): Expr.ConstOutput[R, P] =
+    Expr.ConstOutput(typedFact.value, Evidence(typedFact), post)
 
   def input[F[_], V, P](
     implicit
@@ -81,11 +84,17 @@ object ExprDsl extends ExprBuilderSyntax {
     *
     * @see [[Expr.Embed]]
     */
-  implicit def embed[F[_], V, R, P](
-    expr: RootExpr[R, P],
+  implicit def embedRoot[F[_], V, R, P](
+    expr: Expr[Id, FactTable, R, P],
   )(implicit
     postResult: CaptureP[F, V, R, P],
-  ): Expr[F, V, R, P] = Expr.Embed(expr, postResult)
+  ): Expr[F, V, R, P] = Expr.Embed[F, V, FactTable, R, P](expr, postResult)
+
+  implicit def embedUnit[F[_], V, R, P](
+    expr: Expr[Id, Unit, R, P],
+  )(implicit
+    postResult: CaptureP[F, V, R, P],
+  ): Expr[F, V, R, P] = Expr.Embed[F, V, Unit, R, P](expr, postResult)
 
   def and[F[_], V, R : Conjunction : ExtractBoolean, P](
     first: Expr[F, V, R, P],

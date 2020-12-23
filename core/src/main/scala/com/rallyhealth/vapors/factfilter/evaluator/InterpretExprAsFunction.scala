@@ -68,11 +68,10 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
     }
   }
 
-  override def visitConstOutput[R](expr: Expr.ConstOutput[F, V, R, P]): Input[F, V] => ExprResult[F, V, R, P] = {
-    input =>
-      resultOfPureExpr(expr, input, expr.value, input.evidence) {
-        ExprResult.ConstOutput(_, _)
-      }
+  override def visitConstOutput[R](expr: Expr.ConstOutput[R, P]): Input[F, V] => ExprResult[F, V, R, P] = { input =>
+    val output = Output(expr.value, expr.evidence)
+    val postParam = expr.capture.foldToParam(expr, input.withValue(()), output, Nil)
+    ExprResult.ConstOutput(expr, ExprResult.Context(input, output, postParam))
   }
 
   override def visitDefine[M[_] : Foldable, T](
@@ -101,9 +100,12 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
     }
   }
 
-  override def visitEmbed[R](expr: Expr.Embed[F, V, R, P]): Input[F, V] => ExprResult[F, V, R, P] = { input =>
+  override def visitEmbed[U : ExtractFromAnyInput, R](
+    expr: Expr.Embed[F, V, U, R, P],
+  ): Input[F, V] => ExprResult[F, V, R, P] = { input =>
     val embeddedFn = expr.embeddedExpr.visit(InterpretExprAsFunction())
-    val embeddedInput = input.withValue(input.factTable)
+    val embeddedValue = implicitly[ExtractFromAnyInput[U]].extractFromInput(input)
+    val embeddedInput = input.withValue(embeddedValue)
     val embeddedResult = embeddedFn(embeddedInput)
     // The evidence of the surrounding context is not relevant to the evidence of the embedded expression
     // so we ignore it and leave it up to the parent expression to combine evidence as it sees fit.
@@ -111,6 +113,17 @@ final class InterpretExprAsFunction[F[_] : Foldable, V, P]
       ExprResult.Embed(_, _, embeddedResult)
     }
   }
+
+//  override def visitEmbedUnit[R](expr: Expr.EmbedUnit[F, V, R, P]): Input[F, V] => ExprResult[F, V, R, P] = { input =>
+//    val embeddedFn = expr.embeddedExpr.visit(InterpretExprAsFunction())
+//    val embeddedInput = input.withValue(())
+//    val embeddedResult = embeddedFn(embeddedInput)
+//    // The evidence of the surrounding context is not relevant to the evidence of the embedded expression
+//    // so we ignore it and leave it up to the parent expression to combine evidence as it sees fit.
+//    resultOfSingleSubExpr(expr, input, embeddedResult) {
+//      ExprResult.EmbedUnit(_, _, embeddedResult)
+//    }
+//  }
 
   override def visitExistsInOutput[M[_] : Foldable, U](
     expr: Expr.ExistsInOutput[F, V, M, U, P],

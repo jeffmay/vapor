@@ -14,6 +14,7 @@ sealed class ExprBuilder[F[_], V, M[_], U, P](val returnOutput: Expr[F, V, M[U],
   type CaptureResult[R] = CaptureP[F, V, R, P]
 
   type CaptureInput[G[_]] = CaptureP[G, V, G[V], P]
+  type CaptureConstInput[R] = CaptureP[Id, Unit, R, P]
   type CaptureAllInput = CaptureInput[F]
   type CaptureEachInput = CaptureInput[Id]
 
@@ -268,19 +269,21 @@ final class ValExprBuilder[V, R, P](returnOutput: Expr[Id, V, R, P])
     rhs: R,
   )(implicit
     R: Division[R],
-    captureInput: CaptureAllInput,
+    captureConstInput: CaptureConstInput[R],
+//    captureInput: CaptureAllInput,
     captureResult: CaptureResult[R],
   ): ValExprBuilder[V, R, P] =
-    new ValExprBuilder(ExprDsl.divide(returnOutput, ExprDsl.const(rhs)))
+    new ValExprBuilder(ExprDsl.divide(returnOutput, ExprDsl.embedUnit(ExprDsl.const(rhs))(captureResult)))
 
   def divideFrom(
     lhs: R,
   )(implicit
     R: Division[R],
-    captureInput: CaptureAllInput,
+    captureConstInput: CaptureConstInput[R],
+//    captureInput: CaptureAllInput,
     captureResult: CaptureResult[R],
   ): ValExprBuilder[V, R, P] =
-    new ValExprBuilder(ExprDsl.divide(ExprDsl.const(lhs), returnOutput))
+    new ValExprBuilder(ExprDsl.divide(ExprDsl.embed[Id, V, Unit, R, P](ExprDsl.const(lhs)), returnOutput))
 
   def unary_-(
     implicit

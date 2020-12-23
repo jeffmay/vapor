@@ -43,10 +43,10 @@ object Expr {
     def visitAddOutputs[R : Addition](expr: AddOutputs[F, V, R, P]): G[R]
     def visitAnd[R : Conjunction : ExtractBoolean](expr: And[F, V, R, P]): G[R]
     def visitCollectSomeOutput[M[_] : Foldable, U, R : Monoid](expr: CollectFromOutput[F, V, M, U, R, P]): G[R]
-    def visitConstOutput[R](expr: ConstOutput[F, V, R, P]): G[R]
+    def visitConstOutput[R](expr: ConstOutput[R, P]): G[R]
     def visitDefine[M[_] : Foldable, T](expr: Define[M, T, P]): G[FactSet]
     def visitDivideOutputs[R : Division](expr: DivideOutputs[F, V, R, P]): G[R]
-    def visitEmbed[R](expr: Embed[F, V, R, P]): G[R]
+    def visitEmbed[U : ExtractFromAnyInput, R](expr: Embed[F, V, U, R, P]): G[R]
     def visitExistsInOutput[M[_] : Foldable, U](expr: ExistsInOutput[F, V, M, U, P]): G[Boolean]
     def visitFlatMapOutput[M[_] : Foldable : FlatMap, U, X](expr: FlatMapOutput[F, V, M, U, X, P]): G[M[X]]
     def visitMapOutput[M[_] : Foldable : Functor, U, R](expr: MapOutput[F, V, M, U, R, P]): G[M[R]]
@@ -81,12 +81,12 @@ object Expr {
   /**
     * Uses the given value as the output of this expression and ignores the input.
     */
-  final case class ConstOutput[F[_], V, R, P](
+  final case class ConstOutput[R, P](
     value: R,
     evidence: Evidence,
-    capture: CaptureP[F, V, R, P],
-  ) extends Expr[F, V, R, P] {
-    override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitConstOutput(this)
+    capture: CaptureP[Id, Unit, R, P],
+  ) extends Expr[Id, Unit, R, P] {
+    override def visit[G[_]](v: Visitor[Id, Unit, P, G]): G[R] = v.visitConstOutput(this)
   }
 
   /**
@@ -103,6 +103,25 @@ object Expr {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[F[V]] = v.visitReturnInput(this)
   }
 
+  // TODO: Abstract over the embeddable type?
+
+//  /**
+//    * The input of the expression is replaced with `Unit` and the output of the [[embeddedExpr]]
+//    * is returned.
+//    *
+//    * This makes it possible to embed separate / reusable sub-expressions that don't depend on any contextual input
+//    * into any sub-expression to substitute or defer the result to a separate computation.
+//    *
+//    * Typically, these nodes only exist to satisfy the type system and are skipped by visitors, however, the
+//    * input to the [[Embed]] node can be captured via the input parameters and folded into the final result.
+//    */
+//  final case class EmbedUnit[F[_], V, R, P](
+//    embeddedExpr: Expr[Id, Unit, R, P],
+//    capture: CaptureP[F, V, R, P],
+//  ) extends Expr[F, V, R, P] {
+//    override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitEmbedUnit(this)
+//  }
+
   /**
     * The input of the expression is replaced with the [[FactTable]] and the output of the [[embeddedExpr]]
     * is returned.
@@ -113,8 +132,8 @@ object Expr {
     * Typically, these nodes only exist to satisfy the type system and are skipped by visitors, however, the
     * input to the [[Embed]] node can be captured via the input parameters and folded into the final result.
     */
-  final case class Embed[F[_], V, R, P](
-    embeddedExpr: Expr[Id, FactTable, R, P],
+  final case class Embed[F[_], V, U : ExtractFromAnyInput, R, P](
+    embeddedExpr: Expr[Id, U, R, P],
     capture: CaptureP[F, V, R, P],
   ) extends Expr[F, V, R, P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[R] = v.visitEmbed(this)

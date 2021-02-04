@@ -10,6 +10,7 @@ import com.rallyhealth.vapors.factfilter.data._
 import com.rallyhealth.vapors.factfilter.dsl.CaptureP
 import shapeless.ops.hlist.Tupler
 import shapeless.{DepFn1, Generic, HList}
+import com.rallyhealth.vapors.factfilter.evaluator.DisplayExpr
 
 /**
   * The core expression algebra.
@@ -32,6 +33,8 @@ sealed abstract class Expr[F[_], V, R, P] {
   def visit[G[_]](v: Expr.Visitor[F, V, P, G]): G[R]
 
   def capture: CaptureP[F, V, R, P]
+
+  override lazy val toString: String = DisplayExpr.serialize(this)
 }
 
 object Expr {

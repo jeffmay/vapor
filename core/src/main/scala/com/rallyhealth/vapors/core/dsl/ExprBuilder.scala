@@ -1,12 +1,13 @@
 package com.rallyhealth.vapors.core.dsl
 
 import cats.{FlatMap, Foldable, Functor, FunctorFilter, Id, Order, Traverse, TraverseFilter}
-import com.rallyhealth.vapors.core.algebra.{CaptureP, Expr}
+import com.rallyhealth.vapors.core.algebra.{CaptureP, Expr, ExprSorter}
 import com.rallyhealth.vapors.core.data.{Evidence, TypedFact, Window}
 import com.rallyhealth.vapors.core.lens.NamedLens
 import com.rallyhealth.vapors.core.math.{Addition, Negative, Subtraction}
 
 import scala.collection.Factory
+import scala.reflect.runtime.universe.TypeTag
 
 sealed class ExprBuilder[F[_], V, M[_], U, P](val returnOutput: Expr[F, V, M[U], P]) {
 
@@ -117,6 +118,28 @@ sealed class FoldableExprBuilder[F[_] : Foldable, V, M[_] : Foldable, U, P](retu
         captureOutput,
       )
     })
+
+  def sorted(
+    implicit
+    orderU: Order[U],
+    ev: M[U] <:< Seq[U],
+    tt: TypeTag[U],
+    factory: Factory[U, M[U]],
+    captureResult: CaptureResult[M[U]],
+  ): FoldableExprBuilder[F, V, M, U, P] =
+    new FoldableExprBuilder(Expr.SortOutput(returnOutput, ExprSorter.byNaturalOrder[M, U], captureResult))
+
+  def sortBy[R : Order](
+    buildLens: NamedLens.Fn[U, R],
+  )(implicit
+    ev: M[U] <:< Seq[U],
+    tt: TypeTag[U],
+    factory: Factory[U, M[U]],
+    captureResult: CaptureResult[M[U]],
+  ): FoldableExprBuilder[F, V, M, U, P] = {
+    val lens = buildLens(NamedLens.id[U])
+    new FoldableExprBuilder(Expr.SortOutput(returnOutput, ExprSorter.byField[M, U, R](lens), captureResult))
+  }
 
   def take(
     n: Int,

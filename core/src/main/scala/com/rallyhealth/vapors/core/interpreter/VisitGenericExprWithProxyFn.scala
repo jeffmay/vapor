@@ -85,6 +85,9 @@ abstract class VisitGenericExprWithProxyFn[F[_] : Foldable, V, P, G[_]]
   override def visitSelectFromOutput[S, R](expr: Expr.SelectFromOutput[F, V, S, R, P]): ExprInput[F, V] => G[R] =
     visitGeneric(expr, _)
 
+  override def visitSortOutput[M[_], R](expr: Expr.SortOutput[F, V, M, R, P]): ExprInput[F, V] => G[M[R]] =
+    visitGeneric(expr, _)
+
   override def visitSubtractOutputs[R : Subtraction](expr: Expr.SubtractOutputs[F, V, R, P]): ExprInput[F, V] => G[R] =
     visitGeneric(expr, _)
 

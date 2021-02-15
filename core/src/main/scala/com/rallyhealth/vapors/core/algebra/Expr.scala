@@ -1,8 +1,7 @@
 package com.rallyhealth.vapors.core.algebra
 
 import cats.data.NonEmptyList
-import cats.kernel.Monoid
-import cats.{Align, FlatMap, Foldable, Functor, FunctorFilter, Traverse, TraverseFilter}
+import cats._
 import com.rallyhealth.vapors.core.data._
 import com.rallyhealth.vapors.core.interpreter.{ExprOutput, InterpretExprAsResultFn}
 import com.rallyhealth.vapors.core.lens.NamedLens
@@ -58,6 +57,7 @@ object Expr {
     def visitOutputWithinWindow[R](expr: OutputWithinWindow[F, V, R, P]): G[Boolean]
     def visitReturnInput(expr: ReturnInput[F, V, P]): G[F[V]]
     def visitSelectFromOutput[S, R](expr: SelectFromOutput[F, V, S, R, P]): G[R]
+    def visitSortOutput[M[_], R](expr: SortOutput[F, V, M, R, P]): G[M[R]]
     def visitSubtractOutputs[R : Subtraction](expr: SubtractOutputs[F, V, R, P]): G[R]
     def visitTakeFromOutput[M[_] : Traverse : TraverseFilter, R](expr: TakeFromOutput[F, V, M, R, P]): G[M[R]]
     def visitUsingDefinitions[R](expr: UsingDefinitions[F, V, R, P]): G[R]
@@ -303,6 +303,19 @@ object Expr {
     capture: CaptureP[F, V, M[R], P],
   ) extends Expr[F, V, M[R], P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[M[R]] = v.visitMapOutput(this)
+  }
+
+  /**
+    * Sort the elements in the output of the given [[inputExpr]] using the provided [[ExprSorter]].
+    *
+    * @note if you want to apply this to the input (i.e. `F[V]`), you can pass [[ReturnInput]] as the [[inputExpr]].
+    */
+  final case class SortOutput[F[_], V, M[_], R, P](
+    inputExpr: Expr[F, V, M[R], P],
+    sorter: ExprSorter[M, R],
+    capture: CaptureP[F, V, M[R], P],
+  ) extends Expr[F, V, M[R], P] {
+    override def visit[G[_]](v: Visitor[F, V, P, G]): G[M[R]] = v.visitSortOutput(this)
   }
 
   /**

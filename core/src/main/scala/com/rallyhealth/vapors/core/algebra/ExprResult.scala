@@ -56,6 +56,7 @@ object ExprResult {
     def visitOutputWithinWindow[R](result: OutputWithinWindow[F, V, R, P]): G[Boolean]
     def visitReturnInput(result: ReturnInput[F, V, P]): G[F[V]]
     def visitSelectFromOutput[S, R](result: SelectFromOutput[F, V, S, R, P]): G[R]
+    def visitSortOutput[M[_], R](result: SortOutput[F, V, M, R, P]): G[M[R]]
     def visitSubtractOutputs[R](result: SubtractOutputs[F, V, R, P]): G[R]
     def visitTakeFromOutput[M[_] : Traverse : TraverseFilter, R](result: TakeFromOutput[F, V, M, R, P]): G[M[R]]
     def visitUsingDefinitions[R](result: UsingDefinitions[F, V, R, P]): G[R]
@@ -199,6 +200,14 @@ object ExprResult {
     subResultList: List[ExprResult[Id, U, R, P]],
   ) extends ExprResult[F, V, M[R], P] {
     override def visit[G[_]](v: Visitor[F, V, P, G]): G[M[R]] = v.visitMapOutput(this)
+  }
+
+  final case class SortOutput[F[_], V, M[_], R, P](
+    expr: Expr.SortOutput[F, V, M, R, P],
+    context: Context[F, V, M[R], P],
+    inputResult: ExprResult[F, V, M[R], P],
+  ) extends ExprResult[F, V, M[R], P] {
+    override def visit[G[_]](v: Visitor[F, V, P, G]): G[M[R]] = v.visitSortOutput(this)
   }
 
   final case class OutputIsEmpty[F[_], V, M[_] : Foldable, R, P](

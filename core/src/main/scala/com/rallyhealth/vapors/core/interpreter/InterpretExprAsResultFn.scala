@@ -278,6 +278,17 @@ final class InterpretExprAsResultFn[F[_] : Foldable, V, P]
     }
   }
 
+  override def visitSortOutput[M[_], R](
+    expr: Expr.SortOutput[F, V, M, R, P],
+  ): ExprInput[F, V] => ExprResult[F, V, M[R], P] = { input =>
+    val inputResult = expr.inputExpr.visit(this)(input)
+    val unsorted = inputResult.output.value
+    val sorted = expr.sorter(unsorted)
+    resultOfManySubExpr(expr, input, sorted, inputResult.output.evidence, inputResult.param :: Nil) {
+      ExprResult.SortOutput(_, _, inputResult)
+    }
+  }
+
   override def visitSubtractOutputs[R : Subtraction](
     expr: Expr.SubtractOutputs[F, V, R, P],
   ): ExprInput[F, V] => ExprResult[F, V, R, P] = { input =>

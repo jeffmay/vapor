@@ -21,9 +21,9 @@ final case class FactTable(factsByName: SortedMap[String, FactSet]) extends AnyV
     new FactTable(this.factsByName.combine(newFactTable.factsByName))
   }
 
-  def getSortedSeq[T](factTypeSet: FactTypeSet[T]): IndexedSeq[TypedFact[T]] = {
+  def getSortedSeq[T](factTypeSet: FactTypeSet[T]): Seq[TypedFact[T]] = {
     val sortedArray = getSet(factTypeSet).toArray.sortInPlace()
-    sortedArray.toIndexedSeq
+    sortedArray.to(LazyList)
   }
 
   def getSet[T](factTypeSet: FactTypeSet[T]): TypedFactSet[T] = {

@@ -90,12 +90,20 @@ final class SubtractBuilderOps[R : Subtraction](number: R) {
 sealed class FoldableExprBuilder[F[_] : Foldable, V, M[_] : Foldable, U, P](returnOutput: Expr[F, V, M[U], P])
   extends ExprBuilder[F, V, M, U, P](returnOutput) {
 
+  @deprecated("Use .toLazyList instead or use .to(List) if you really want it to be strict", "0.10.0")
   def toList(
     implicit
     ev: M[U] <:< Iterable[U],
     captureOutput: CaptureP[F, V, List[U], P],
   ): FoldableExprBuilder[F, V, List, U, P] =
     to(List)
+
+  def toLazyList(
+    implicit
+    ev: M[U] <:< Iterable[U],
+    captureOutput: CaptureP[F, V, List[U], P],
+  ): FoldableExprBuilder[F, V, List, U, P] =
+    to(LazyList)
 
   def toSet(
     implicit

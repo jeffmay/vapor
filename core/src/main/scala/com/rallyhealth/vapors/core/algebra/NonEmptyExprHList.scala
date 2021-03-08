@@ -3,7 +3,7 @@ package com.rallyhealth.vapors.core.algebra
 import cats.data.Ior
 import cats.syntax.all._
 import cats.{Align, Functor, FunctorFilter, Id, Semigroupal}
-import shapeless.{::, HList, HNil}
+import shapeless._
 
 /**
   * A helpful short-hand for an HList of expressions that all share the same input, effect, and parameter types.
@@ -34,7 +34,7 @@ sealed trait NonEmptyExprHList[V, M[_], L <: HList, P] {
     *       every permutation of HList that can be produced from the output lists.
     *
     * @example NonEmptyExprHList.of(const(List("A", "B")), const(List(1, 2))).visitProduct(g) == const(
-    *            List("A" :: 1 :: HNil, "A" :: 2 :: HNil, "B" :: 1 :: HNil, "C" :: 2 :: HNil)
+    *            List("A" :: 1 :: HNil, "A" :: 2 :: HNil, "B" :: 1 :: HNil, "B" :: 2 :: HNil)
     *          ).visit(g)
     *
     * @example NonEmptyExprHList.of(const(List("A")), const(Nil)).visitProduct(g) == const(Nil).visit(g)

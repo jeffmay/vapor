@@ -28,6 +28,15 @@ class InterpretExprAsSimpleOutputFn[V, P] extends VisitGenericExprWithProxyFn[V,
 }
 
 object InterpretExprAsSimpleOutputFn {
+
+  // TODO: List[Eval[P]] is an insufficient data structure for storing the results of sub-expressions.
+  //
+  // 1. It does not distinguish between input expressions, condition expressions, or operand expressions.
+  //    All params are lumped together in the same list.
+  // 2. It does not guarantee to apply the CaptureP at the appropriate level. Parameters captured from
+  //    sub-expressions can be lumped in together from parameters captured within the current expression.
+  //    We should not allow this kind of mistake at the type level or at least by some kind of helper method
+  //    that all code paths utilize.
   type GenSimpleOutput[R, P] = (ExprOutput[R], List[Eval[P]])
 
   class SimpleOutputFnFunctorBuilder[V, P] {

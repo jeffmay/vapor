@@ -2,7 +2,7 @@ package com.rallyhealth.vapors.core.interpreter
 
 import cats.kernel.Monoid
 import cats._
-import com.rallyhealth.vapors.core.algebra.Expr
+import com.rallyhealth.vapors.core.algebra.{Expr, ExprHList}
 import com.rallyhealth.vapors.core.data.{ExtractBoolean, FactSet}
 import com.rallyhealth.vapors.core.logic.{Conjunction, Disjunction, Negation}
 import com.rallyhealth.vapors.core.math.{Addition, Negative, Subtraction}
@@ -20,10 +20,17 @@ import scala.collection.MapView
   */
 abstract class VisitGenericExprWithProxyFn[V, P, G[_]] extends Expr.Visitor[V, P, Lambda[r => ExprInput[V] => G[r]]] {
 
+  /**
+    * All [[Expr]] subclass visitor methods pass through this method.
+    */
   protected def visitGeneric[U, R](
     expr: Expr[U, R, P],
     input: ExprInput[U],
   ): G[R]
+
+  /*
+   * Everything below here just forwards to the visitGeneric method.
+   */
 
   override def visitAddOutputs[R : Addition](expr: Expr.AddOutputs[V, R, P]): ExprInput[V] => G[R] =
     visitGeneric(expr, _)
@@ -117,6 +124,11 @@ abstract class VisitGenericExprWithProxyFn[V, P, G[_]] extends Expr.Visitor[V, P
   }
 
   override def visitWrapOutputHList[T <: HList, R](expr: Expr.WrapOutputHList[V, T, R, P]): ExprInput[V] => G[R] =
+    visitGeneric(expr, _)
+
+  override def visitZipWithDefaults[M[_] : Align : Functor, RL <: HList, IEL <: ExprHList[V, P]](
+    expr: Expr.ZipWithDefaults[V, M, RL, IEL, P],
+  ): ExprInput[V] => G[M[RL]] =
     visitGeneric(expr, _)
 
   override def visitZipOutput[M[_] : Align : FunctorFilter, L <: HList, R](

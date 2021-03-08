@@ -101,6 +101,20 @@ final class FoldableExprBuilder[V, M[_], U, P](returnOutput: Expr[V, M[U], P])
   ): FoldableExprBuilder[V, Set, U, P] =
     to(Set)
 
+  def toLazyList(
+    implicit
+    ev: M[U] <:< IterableOnce[U],
+    captureResult: CaptureResult[LazyList[U]],
+  ): FoldableExprBuilder[V, LazyList, U, P] =
+    to(LazyList)
+
+  def toSeq(
+    implicit
+    ev: M[U] <:< IterableOnce[U],
+    captureResult: CaptureResult[Seq[U]],
+  ): FoldableExprBuilder[V, Seq, U, P] =
+    to[Seq](LazyList)
+
   def toMap[K, X](
     implicit
     ev: M[U] <:< IterableOnce[(K, X)],

@@ -36,6 +36,14 @@ sealed abstract class Expr[V, R, P] {
 
 object Expr {
 
+  // TODO: Is it possible to define the visitor as having 2 free type parameters?
+  //       trait FunctionK2[F[_, _], G[_, _]] {
+  //         def apply[A, B](f: F[A, B]): G[A, B]
+  //       }
+  //       Visitor[P, G[_, _]] extends Function2K[Expr[*, *, P], G]] {
+  //         def apply[V, R](fa: Expr[V, R, P]): G[V, R]
+  //       }
+
   import cats.{~>, Id}
 
   trait Visitor[V, P, G[_]] extends (Expr[V, *, P] ~> G) {
@@ -70,6 +78,10 @@ object Expr {
     def visitWrapOutputSeq[R](expr: WrapOutputSeq[V, R, P]): G[Seq[R]]
     def visitWithFactsOfType[T, R](expr: WithFactsOfType[T, R, P]): G[R]
     def visitZipOutput[M[_] : Align : FunctorFilter, L <: HList, R](expr: ZipOutput[V, M, L, R, P]): G[M[R]]
+
+    def visitZipWithDefaults[M[_] : Align : Functor, RL <: HList, IEL <: ExprHList[V, P]](
+      expr: ZipWithDefaults[V, M, RL, IEL, P],
+    ): G[M[RL]]
   }
 
   /*
@@ -379,12 +391,25 @@ object Expr {
     * Apply a given [[converter]] to every HList produced by zipping the outputs of expressions that return the
     * same higher-kinded sequence, stopping at the shortest sequence.
     */
+  // TODO: Rename to ZipOutputToShortest
   final case class ZipOutput[V, M[_] : Align : FunctorFilter, L <: HList, R, P](
     inputExprHList: NonEmptyExprHList[V, M, L, P],
     converter: ExprConverter[L, R],
     capture: CaptureP[V, M[R], P],
   ) extends Expr[V, M[R], P] {
     override def visit[G[_]](v: Visitor[V, P, G]): G[M[R]] = v.visitZipOutput(this)
+  }
+
+  // TODO: Figure out how to implement this so that it zips all existing elements of IEL into an HList of type DL
+  //       (or fuses missing elements from empty M's with the appropriate value from the defaults HList of type DL)
+  final case class ZipWithDefaults[V, M[_] : Align : Functor, DL <: HList, IEL <: ExprHList[V, P], P](
+    inputExpr: IEL,
+    defaultsExpr: Expr[V, DL, P],
+    capture: CaptureP[V, M[DL], P],
+  )(implicit
+    val op: CanZipWithDefaults[V, P, M, DL, IEL],
+  ) extends Expr[V, M[DL], P] {
+    override def visit[G[_]](v: Visitor[V, P, G]): G[M[DL]] = v.visitZipWithDefaults(this)
   }
 
   /**

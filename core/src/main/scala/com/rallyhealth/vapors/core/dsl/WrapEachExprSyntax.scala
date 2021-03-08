@@ -2,8 +2,7 @@ package com.rallyhealth.vapors.core.dsl
 
 import cats.{Align, FunctorFilter}
 import com.rallyhealth.vapors.core.algebra.{CaptureP, Expr, ExprConverter, NonEmptyExprHList}
-import shapeless.ops.hlist.Tupler
-import shapeless.{::, Generic, HList, HNil}
+import shapeless.{::, HList, HNil}
 
 trait WrapEachExprSyntax {
 

@@ -2,7 +2,7 @@ package com.rallyhealth.vapors.core.interpreter
 
 import cats._
 import cats.data.Chain
-import com.rallyhealth.vapors.core.algebra.{ConditionBranch, Expr, ExprResult, NonEmptyExprHList}
+import com.rallyhealth.vapors.core.algebra.{ConditionBranch, Expr, ExprHList, ExprResult, NonEmptyExprHList}
 import com.rallyhealth.vapors.core.data._
 import com.rallyhealth.vapors.core.interpreter.InterpretExprAsSimpleOutputFn.SimpleOutputFnFunctorBuilder
 import com.rallyhealth.vapors.core.logic._
@@ -16,6 +16,12 @@ final class InterpretExprAsResultFn[V, P] extends Expr.Visitor[V, P, Lambda[r =>
 
   import cats.syntax.all._
   import com.rallyhealth.vapors.core.syntax.math._
+
+  /**
+    * This type and functor are used for HList operations that require the [[InterpretExprAsSimpleOutputFn]] interpreter
+    */
+  private object SimpleOutputFnFunctorBuilder extends SimpleOutputFnFunctorBuilder[V, P]
+  import SimpleOutputFnFunctorBuilder._
 
   override def visitAddOutputs[R : Addition](expr: Expr.AddOutputs[V, R, P]): ExprInput[V] => ExprResult[V, R, P] = {
     input =>
@@ -430,10 +436,22 @@ final class InterpretExprAsResultFn[V, P] extends Expr.Visitor[V, P, Lambda[r =>
     expr: Expr.ZipOutput[V, M, L, R, P],
   ): ExprInput[V] => ExprResult[V, M[R], P] = { input =>
     val (tupleOutput, allParams) =
-      visitHListOfHigherKindedExprAndZipCombinedToShortestOutput(expr.inputExprHList, input)
+      visitHListOfHigherKindedExprAndZipToShortestOutput(expr.inputExprHList, input)
     val outputValues = FunctorFilter[M].functor.map(tupleOutput.value)(expr.converter)
     resultOfManySubExpr(expr, input, outputValues, tupleOutput.evidence, allParams) {
       ExprResult.ZipOutput(_, _)
+    }
+  }
+
+  override def visitZipWithDefaults[M[_] : Align : Functor, RL <: HList, IEL <: ExprHList[V, P]](
+    expr: Expr.ZipWithDefaults[V, M, RL, IEL, P],
+  ): ExprInput[V] => ExprResult[V, M[RL], P] = { input =>
+    val defaults = expr.defaultsExpr.visit(this)(input)
+    val simpleVisitor = new InterpretExprAsSimpleOutputFn[V, P]
+    val compute = expr.op.applyZipWithDefaults(defaults.output.value, expr.inputExpr, simpleVisitor)
+    val (output, params) = compute(input)
+    resultOfManySubExpr(expr, input, output.value, output.evidence, params) {
+      ExprResult.ZipWithDefaults(_, _)
     }
   }
 
@@ -475,12 +493,6 @@ final class InterpretExprAsResultFn[V, P] extends Expr.Visitor[V, P, Lambda[r =>
   }
 
   /**
-    * This type and functor are used for HList operations that require the [[InterpretExprAsSimpleOutputFn]] interpreter
-    */
-  private object SimpleOutputFnFunctorBuilder extends SimpleOutputFnFunctorBuilder[V, P]
-  import SimpleOutputFnFunctorBuilder._
-
-  /**
     * Uses the [[SimpleOutputFunctor]] to visit and map over each expression of the given `exprHList` and return
     * a simplified output of [[InterpretExprAsSimpleOutputFn.GenSimpleOutput]] combined as a Monoid.
     *
@@ -505,7 +517,7 @@ final class InterpretExprAsResultFn[V, P] extends Expr.Visitor[V, P, Lambda[r =>
     *
     * @see [[NonEmptyExprHList.visitZippedToShortest]] for more details and examples.
     */
-  private def visitHListOfHigherKindedExprAndZipCombinedToShortestOutput[M[_] : Align : FunctorFilter, L <: HList](
+  private def visitHListOfHigherKindedExprAndZipToShortestOutput[M[_] : Align : FunctorFilter, L <: HList](
     exprHList: NonEmptyExprHList[V, M, L, P],
     input: ExprInput[V],
   ): SimpleOutput[M[L]] = {

@@ -30,9 +30,14 @@ ThisBuild / packageDoc / publishArtifact := false
 publish := {}
 publishLocal := {}
 
-def commonProject(dir: String): Project = {
+def commonProject(
+  dir: String,
+  projectPrefix: String = "",
+): Project = {
+  val packagePrefix = s"com.rallyhealth.vapors${if (projectPrefix.isEmpty) "" else s".$projectPrefix"}"
   Project(dir, file(dir)).settings(
     name := s"vapors-$dir",
+    idePackagePrefix := Some(packagePrefix),
   )
 }
 

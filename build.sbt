@@ -34,7 +34,7 @@ def commonProject(
   dir: String,
   projectPrefix: String = "",
 ): Project = {
-  val packagePrefix = s"com.rallyhealth.vapors${if (projectPrefix.isEmpty) "" else s".$projectPrefix"}"
+  val packagePrefix = s"com.rallyhealth${if (projectPrefix.isEmpty) "" else s".$projectPrefix"}"
   Project(dir, file(dir)).settings(
     name := s"vapors-$dir",
     idePackagePrefix := Some(packagePrefix),

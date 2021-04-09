@@ -4,7 +4,8 @@ import cats.Show
 import cats.data.{Chain, NonEmptySet}
 
 import scala.annotation.tailrec
-import scala.collection.{immutable, BitSet, SortedSet}
+import scala.collection.{immutable, BitSet, Factory, IterableFactory, SortedSet}
+import scala.reflect.ClassTag
 
 final case class DataPath(nodes: Chain[DataPath.Node]) extends AnyVal {
   import DataPath._
@@ -36,6 +37,9 @@ final case class DataPath(nodes: Chain[DataPath.Node]) extends AnyVal {
   def atKey[K : ValidDataPathKey](key: K): DataPath =
     DataPath(nodes :+ MapKey(ValidDataPathKey[K].stringify(key)))
 
+  def to[C : ClassTag](factory: Factory[_, C]): DataPath =
+    DataPath(nodes :+ ConvertTo(factory))
+
   def filterKeys[K : ValidDataPathKey](keys: NonEmptySet[K]): DataPath =
     DataPath(nodes :+ FilterKeys(keys.map(ValidDataPathKey[K].stringify).toSortedSet))
 
@@ -56,6 +60,14 @@ object DataPath {
   final case class Field(name: String) extends Node
 
   final case class MapKey(key: String) extends Node
+
+  final case class ConvertTo private (collectionName: String) extends Node
+  final object ConvertTo {
+
+    def apply[C](collection: Factory[_, C])(implicit tag: ClassTag[C]): ConvertTo = {
+      ConvertTo(tag.runtimeClass.getSimpleName)
+    }
+  }
 
   final case class FilterKeys(keys: SortedSet[String]) extends Node
 
@@ -105,6 +117,8 @@ object DataPath {
           buffer.append("']")
         case Field(name) =>
           buffer.append('.').append(name)
+        case ConvertTo(col) =>
+          buffer.append(".to").append(col)
         case Head =>
           remaining :+= Idx(0)
         case Last =>

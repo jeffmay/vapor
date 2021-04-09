@@ -23,7 +23,7 @@ final class WhenElseExprBuilder[V, R, P](private val branches: NonEmptyList[Cond
   )(implicit
     captureResult: CaptureP[V, R, P],
   ): Expr.When[V, R, P] =
-    Expr.When(branches.reverse, elseExpr, captureResult)
+    Expr.When(branches.reverse.toNev, elseExpr, captureResult)
 
   def elif(elifExpr: CondExpr[V, P]): WhenElifExprBuilder[V, R, P] = new WhenElifExprBuilder((elifExpr, branches))
 }

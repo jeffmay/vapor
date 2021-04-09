@@ -8,6 +8,7 @@ import shapeless.ops.hlist
 import shapeless.{Generic, HList}
 
 import scala.collection.{Factory, MapView, View}
+import scala.reflect.ClassTag
 
 object NamedLens extends NamedLensLowPriorityImplicits {
 
@@ -61,8 +62,11 @@ object NamedLens extends NamedLensLowPriorityImplicits {
 
     // TODO: Should there be any path information for conversion?
     //       List => Map seems important information as values with duplicate keys could be dropped
-    def to[B](factory: Factory[E, B]): NamedLens[A, B] =
-      lens.copy(get = lens.get.andThen(factory.fromSpecific(_)))
+    def to[B : ClassTag](factory: Factory[E, B]): NamedLens[A, B] =
+      lens.copy(
+        path = lens.path.to(factory),
+        get = lens.get.andThen(factory.fromSpecific(_)),
+      )
 
     def headOption: NamedLens[A, Option[E]] =
       lens.copy(

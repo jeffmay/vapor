@@ -1,7 +1,7 @@
 package com.rallyhealth.vapors.core.algebra
 
 import cats._
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, NonEmptyVector}
 import com.rallyhealth.vapors.core.data._
 import com.rallyhealth.vapors.core.interpreter.{ExprOutput, InterpretExprAsResultFn}
 import com.rallyhealth.vapors.core.lens.NamedLens
@@ -266,7 +266,7 @@ object Expr {
     * @note this expression <i>does</i> short-circuit on the first branch whose condition is met
     */
   final case class When[V, R, P](
-    conditionBranches: NonEmptyList[ConditionBranch[V, R, P]],
+    conditionBranches: NonEmptyVector[ConditionBranch[V, R, P]],
     defaultExpr: Expr[V, R, P],
     capture: CaptureP[V, R, P],
   ) extends Expr[V, R, P] {

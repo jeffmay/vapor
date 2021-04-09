@@ -8,6 +8,7 @@ import com.rallyhealth.vapors.core.math._
 
 import scala.collection.{Factory, MapView, View}
 import scala.reflect.runtime.universe.TypeTag
+import scala.reflect.ClassTag
 
 // TODO: Make this more reusable for MapViewExprBuilder
 sealed class ExprBuilder[V, M[_], U, P](val returnOutput: Expr[V, M[U], P]) {
@@ -162,6 +163,7 @@ final class FoldableExprBuilder[V, M[_], U, P](returnOutput: Expr[V, M[U], P])
     factory: Factory[U, N[U]],
   )(implicit
     ev: M[U] <:< IterableOnce[U],
+    tag: ClassTag[N[U]],
     captureResult: CaptureResult[N[U]],
   ): FoldableExprBuilder[V, N, U, P] =
     new FoldableExprBuilder(
